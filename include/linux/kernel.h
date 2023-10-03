@@ -11,6 +11,7 @@
 #ifndef _LINUX_KERNEL_H
 #define _LINUX_KERNEL_H
 
+#include <linux/array_size.h>
 #include <linux/stdarg.h>
 #include <linux/align.h>
 #include <linux/array_size.h>
