@@ -525,7 +525,6 @@ struct goodix_ts_core {
 
 #if IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER)
 	void *notifier_cookie;
-	const char *touch_environment;
 #elif IS_ENABLED(CONFIG_FB)
 	struct notifier_block fb_notifier;
 #endif

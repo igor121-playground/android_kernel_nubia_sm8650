@@ -2056,8 +2056,10 @@ int goodix_ts_stage2_init(struct goodix_ts_core *cd)
 	ts_info("success register irq");
 
 #if IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER)
-	if (cd->touch_environment && !strcmp(cd->touch_environment, "pvm"))
+	if (active_panel)
 		goodix_register_for_panel_events(cd->bus->dev->of_node, cd);
+	else
+		ts_err("No panel found");
 #elif IS_ENABLED(CONFIG_FB)
 	cd->fb_notifier.notifier_call = goodix_ts_fb_notifier_callback;
 	if (fb_register_client(&cd->fb_notifier))
@@ -2346,10 +2348,6 @@ static int goodix_ts_probe(struct platform_device *pdev)
 			ts_err("failed parse device info form dts, %d", ret);
 			return -EINVAL;
 		}
-#if IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER)
-		of_property_read_string(node, "qcom,touch-environment",
-				&core_data->touch_environment);
-#endif
 	} else {
 		ts_err("no valid device tree node found");
 		return -ENODEV;
