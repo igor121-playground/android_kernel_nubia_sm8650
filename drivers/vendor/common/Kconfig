@@ -1,2 +1,3 @@
 source "drivers/vendor/common/power/Kconfig"
 source "drivers/vendor/common/touchscreen_v2/Kconfig"
+source "drivers/vendor/common/fan/Kconfig"
