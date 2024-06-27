@@ -1,0 +1,1 @@
+source "drivers/vendor/common/power/Kconfig"
