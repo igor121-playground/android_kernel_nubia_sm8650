@@ -111,7 +111,7 @@ static bool pinctrl_msm_log_mask;
 static const struct pinconf_generic_params msm_gpio_bindings[] = {
 	{"qcom,apps",        MSM_PIN_CONFIG_APPS,     0},
 	{"qcom,remote",      MSM_PIN_CONFIG_REMOTE,   0},
-	{"qcom,i2c_pull",    MSM_PIN_CONFIG_I2C_PULL, 0},
+	{"qcom,i2c_pull",    MSM_PIN_CONFIG_I2C_PULL, 1},
 };
 
 static const char * const pulls_keeper[] = {
@@ -597,7 +597,7 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 			owner_bit = MSM_REMOTE_OWNER;
 			break;
 		case MSM_PIN_CONFIG_I2C_PULL:
-			arg = 1;
+			arg = !!arg;
 			break;
 		default:
 			dev_err(pctrl->dev, "Unsupported config parameter: %x\n",
