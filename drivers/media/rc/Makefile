@@ -2,6 +2,8 @@
 
 obj-y += keymaps/
 
+obj-$(CONFIG_ZTE_IR) += zte_ir.o
+
 rc-core-y := rc-main.o rc-ir-raw.o
 rc-core-$(CONFIG_LIRC) += lirc_dev.o
 rc-core-$(CONFIG_MEDIA_CEC_RC) += keymaps/rc-cec.o
