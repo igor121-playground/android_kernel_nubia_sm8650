@@ -1,0 +1,5 @@
+## configs for PQ83A01 project
+#ADD:CONFIG_*
+
+#Sensor hall
+CONFIG_SENSORS_HALL_AH1898=y
