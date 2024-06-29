@@ -77,12 +77,6 @@
 #define TS_DEFAULT_FIRMWARE				"goodix_firmware_9916r.bin"
 #define TS_DEFAULT_CFG_BIN				"goodix_cfg_group_9916r.bin"
 
-#ifdef CONFIG_TOUCHSCREEN_PQ82A02_ZTE_SR
-#define ZTE_GOODIX_SR    10
-#else
-#define ZTE_GOODIX_SR    16
-#endif
-
 enum GOODIX_GESTURE_TYP {
 	GESTURE_SINGLE_TAP = (1 << 0),
 	GESTURE_DOUBLE_TAP = (1 << 1),
@@ -761,6 +755,4 @@ void goodix_tools_exit(void);
 int goodix_parse_cfg_bin(struct goodix_cfg_bin *cfg_bin);
 int goodix_get_reg_and_cfg(struct goodix_ts_core *cd, u8 sensor_id,
 			   struct goodix_cfg_bin *cfg_bin);
-extern int zte_get_boot_mode(void);
-
 #endif

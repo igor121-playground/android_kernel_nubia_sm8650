@@ -74,8 +74,6 @@ int core_module_prob_sate = CORE_MODULE_UNPROBED;
 extern void goodix_tpd_register_fw_class(struct goodix_ts_core *core_data);
 static int goodix_send_ic_config(struct goodix_ts_core *cd, int type);
 
-int is_recovery;
-
 #if IS_ENABLED(CONFIG_PM)
 int pm_resume_flag;
 #endif
@@ -995,9 +993,6 @@ static int goodix_parse_dt_resolution(struct device_node *node,
 {
 	int ret;
 
-	is_recovery = zte_get_boot_mode();
-	ts_info("is_recovery = %d", is_recovery);
-
 	ret = of_property_read_u32(node, "goodix,panel-max-x",
 				 &board_data->panel_max_x);
 	if (ret) {
@@ -1024,12 +1019,6 @@ static int goodix_parse_dt_resolution(struct device_node *node,
 	if (ret) {
 		ts_err("failed get panel-max-p, use default");
 		board_data->panel_max_p = GOODIX_PEN_MAX_PRESSURE;
-	}
-
-	if (is_recovery == 4) {
-		board_data->panel_max_x = board_data->panel_max_x / ZTE_GOODIX_SR;
-		board_data->panel_max_y = board_data->panel_max_y / ZTE_GOODIX_SR;
-		board_data->panel_max_w = board_data->panel_max_w / ZTE_GOODIX_SR;
 	}
 
 	return 0;

@@ -1146,8 +1146,6 @@ static int brl_esd_check(struct goodix_ts_core *cd)
 #define POINT_TYPE_STYLUS_HOVER		0x01
 #define POINT_TYPE_STYLUS			0x03
 
-extern int is_recovery;
-
 static void goodix_parse_finger(struct goodix_touch_data *touch_data,
 				u8 *buf, int touch_num)
 {
@@ -1167,15 +1165,9 @@ static void goodix_parse_finger(struct goodix_touch_data *touch_data,
 		y = le16_to_cpup((__le16 *)(coor_data + 4));
 		w = le16_to_cpup((__le16 *)(coor_data + 6));
 		touch_data->coords[id].status = TS_TOUCH;
-		if (is_recovery == 4) {
-			touch_data->coords[id].x = x / ZTE_GOODIX_SR;//16
-			touch_data->coords[id].y = y / ZTE_GOODIX_SR;
-			touch_data->coords[id].w = w / ZTE_GOODIX_SR;
-		} else {
-			touch_data->coords[id].x = x;
-			touch_data->coords[id].y = y;
-			touch_data->coords[id].w = w;
-		}
+		touch_data->coords[id].x = x;
+		touch_data->coords[id].y = y;
+		touch_data->coords[id].w = w;
 		coor_data += BYTES_PER_POINT;
 	}
 	touch_data->touch_num = touch_num;
