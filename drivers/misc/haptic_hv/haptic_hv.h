@@ -10,7 +10,9 @@
 #include <linux/version.h>
 #include <sound/control.h>
 #include <sound/soc.h>
+#ifdef CONFIG_VENDOR_ZTE_DEV_MONITOR_SYSTEM
 #include <vendor/comdef/zlog_common_base.h>
+#endif
 /*********************************************************
  *
  * Haptic_HV CHIPID
