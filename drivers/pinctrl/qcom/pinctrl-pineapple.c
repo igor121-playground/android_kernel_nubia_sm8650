@@ -8,6 +8,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/pinctrl.h>
+#include <linux/pinctrl/qcom-pinctrl.h>
 
 #include "pinctrl-msm.h"
 
@@ -2523,12 +2524,17 @@ static int pineapple_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct msm_pinctrl_soc_data *pinctrl_data;
 	struct device *dev = &pdev->dev;
+	int ret;
 
 	pinctrl_data = of_device_get_match_data(dev);
 	if (!pinctrl_data)
 		return -EINVAL;
 
-	return msm_pinctrl_probe(pdev, pinctrl_data);
+	ret = msm_pinctrl_probe(pdev, pinctrl_data);
+#ifdef CONFIG_NFC_GPIO35_CLKREQ
+	msm_gpio_mpm_wake_set(35, true);
+#endif
+	return ret;
 }
 
 static struct platform_driver pineapple_pinctrl_driver = {
