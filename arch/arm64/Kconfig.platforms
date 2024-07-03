@@ -243,6 +243,12 @@ config ARCH_QCOM
 	help
 	  This enables support for the ARMv8 based Qualcomm chipsets.
 
+config BOARD_PLATFORM
+	string "Target Qualcomm Platform"
+	depends on ARCH_QCOM
+	help
+	  This is required to build some external modules.
+
 config ARCH_QTI_VM
 	bool "Enable Virtual Machines Support for Qualcomm Technologies, Inc."
 	depends on ARCH_QCOM
