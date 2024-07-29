@@ -17,7 +17,7 @@ config NFC_ST54J_ESE
 	  no other NFC dependencies.
 
 config NFC_GPIO35_CLKREQ
-	tristate "ST NCI based NFC ESE Driver for ST54L"
+	bool "ST NCI based NFC ESE Driver for ST54L"
 	depends on I2C && SPI
 	help
 	  This enables the NFC ESE driver for ST54J based devices.
