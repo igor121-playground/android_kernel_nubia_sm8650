@@ -525,6 +525,9 @@ struct goodix_ts_core {
 
 #if IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER)
 	void *notifier_cookie;
+	struct workqueue_struct *power_wq;
+	struct work_struct resume_work;
+	struct work_struct suspend_work;
 #elif IS_ENABLED(CONFIG_FB)
 	struct notifier_block fb_notifier;
 #endif
