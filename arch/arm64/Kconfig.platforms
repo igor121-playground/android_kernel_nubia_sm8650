@@ -249,6 +249,12 @@ config BOARD_PLATFORM
 	help
 	  This is required to build some external modules.
 
+config ZTE_BOARD_NAME
+	string "Target ZTE Board Name"
+	depends on ARCH_QCOM
+	help
+	  This is required to build some external modules.
+
 config ARCH_QTI_VM
 	bool "Enable Virtual Machines Support for Qualcomm Technologies, Inc."
 	depends on ARCH_QCOM
