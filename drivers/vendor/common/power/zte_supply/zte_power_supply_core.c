@@ -882,7 +882,7 @@ __zte_power_supply_register(struct device *parent,
 {
 	struct device *dev;
 	struct zte_power_supply *psy;
-	int i, rc;
+	int rc;
 
 	if (!parent)
 		pr_warn("%s: Expected proper parent device for '%s'\n",
