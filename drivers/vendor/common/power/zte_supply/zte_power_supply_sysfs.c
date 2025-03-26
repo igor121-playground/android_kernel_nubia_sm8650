@@ -171,21 +171,16 @@ static ssize_t zte_power_supply_show_property(struct device *dev,
 	enum zte_power_supply_property psp = dev_attr_psp(attr);
 	union power_supply_propval value;
 
-	if (psp == POWER_SUPPLY_PROP_TYPE) {
-		value.intval = psy->desc->type;
-	} else {
-		ret = zte_power_supply_get_property(psy, psp, &value);
-
-		if (ret < 0) {
-			if (ret == -ENODATA)
-				dev_dbg(dev, "driver has no data for `%s' property\n",
-					attr->attr.name);
-			else if (ret != -ENODEV && ret != -EAGAIN)
-				dev_err_ratelimited(dev,
-					"driver failed to report `%s' property: %zd\n",
-					attr->attr.name, ret);
-			return ret;
-		}
+	ret = zte_power_supply_get_property(psy, psp, &value);
+	if (ret < 0) {
+		if (ret == -ENODATA)
+			dev_dbg(dev, "driver has no data for `%s' property\n",
+				attr->attr.name);
+		else if (ret != -ENODEV && ret != -EAGAIN)
+			dev_err_ratelimited(dev,
+				"driver failed to report `%s' property: %zd\n",
+				attr->attr.name, ret);
+		return ret;
 	}
 
 	if (ps_attr->text_values_len > 0 &&
@@ -251,9 +246,6 @@ static umode_t power_supply_attr_is_visible(struct kobject *kobj,
 
 	if (!zte_power_supply_attrs[attrno].prop_name)
 		return 0;
-
-	if (attrno == POWER_SUPPLY_PROP_TYPE)
-		return mode;
 
 	for (i = 0; i < psy->desc->num_properties; i++) {
 		int property = psy->desc->properties[i];
