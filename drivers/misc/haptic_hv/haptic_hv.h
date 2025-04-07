@@ -89,6 +89,7 @@
 /* #define AW869X_MUL_GET_F0 */
 //[PIKE-1043] Upgrade richtap vibrator paramters by luoming0812 at 20210918
 #define AAC_RICHTAP_SUPPORT
+#define AW_INPUT_FRAMEWORK
 /*********************************************************
  *
  * Conditional Marco
@@ -505,6 +506,7 @@ struct aw_haptic {
 	aw_snd_soc_codec_t *codec;
 
 	/* COMMON */
+	bool rtp_custom;
 	uint8_t flags;
 	uint8_t bst_pc;
 	uint8_t play_mode;
@@ -555,6 +557,7 @@ struct aw_haptic {
 
 	struct device *dev;
 	struct i2c_client *i2c;
+	struct input_dev *input_dev;
 	struct mutex lock;
 	struct hrtimer timer;
 	struct mutex rtp_lock;

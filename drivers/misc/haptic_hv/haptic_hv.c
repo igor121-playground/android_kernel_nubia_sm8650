@@ -51,6 +51,13 @@ char aw_rtp_name[][AW_RTP_NAME_MAX] = {
 	{"haptic_rtp_silk.bin"},
 };
 
+struct custom_fifo_data {
+	uint32_t idx;
+	uint32_t length;
+	uint32_t play_rate_hz;
+	uint8_t	*data;
+};
+
 struct pm_qos_request aw_pm_qos_req_vb;
 struct aw_haptic_container *aw_rtp;
 
@@ -674,6 +681,181 @@ static void rtp_trim_lra_cali(struct aw_haptic *aw_haptic)
 #endif
 }
 
+#ifdef AW_INPUT_FRAMEWORK
+static void set_gain(struct aw_haptic *aw_haptic, int16_t gain)
+{
+	if (gain > 0x7fff)
+		gain = 0x7fff;
+	aw_haptic->gain = gain * 0x80 / 0x7fff;
+}
+
+static int upload_constant_effect(struct aw_haptic *aw_haptic,
+				  uint16_t length, int16_t magnitude)
+{
+	aw_haptic->activate_mode = AW_RAM_LOOP_MODE;
+	aw_haptic->duration = length;
+	set_gain(aw_haptic, magnitude);
+
+	return 0;
+}
+
+static int upload_custom_effect(struct aw_haptic *aw_haptic,
+				int16_t __user *data, int16_t magnitude)
+{
+	struct custom_fifo_data custom_data;
+	int ret = 0;
+
+	if (copy_from_user(&custom_data, data, sizeof(custom_data)))
+		return -EFAULT;
+
+	mutex_lock(&aw_haptic->rtp_lock);
+
+	kvfree(aw_rtp);
+	aw_rtp = kcalloc(custom_data.length, sizeof(u8), GFP_KERNEL);
+	if (!aw_rtp) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	aw_rtp->len = custom_data.length;
+	if (copy_from_user(aw_rtp->data, (u8 __user *)custom_data.data,
+			   custom_data.length)) {
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	aw_haptic->rtp_custom = true;
+	aw_haptic->activate_mode = AW_RTP_MODE;
+	set_gain(aw_haptic, magnitude);
+
+exit:
+	mutex_unlock(&aw_haptic->rtp_lock);
+
+	return ret;
+}
+
+static int input_upload_effect(struct input_dev *dev, struct ff_effect *effect,
+			       struct ff_effect *old)
+{
+	struct aw_haptic *aw_haptic = input_get_drvdata(dev);
+	int ret = 0;
+
+	mutex_lock(&aw_haptic->lock);
+	switch (effect->type) {
+	case FF_CONSTANT:
+		ret = upload_constant_effect(aw_haptic,
+					     effect->replay.length,
+					     effect->u.constant.level);
+		if (ret) {
+			aw_err("Failed to upload constant effect\n");
+			goto exit;
+		}
+
+		break;
+	case FF_PERIODIC:
+		if (effect->u.periodic.waveform != FF_CUSTOM) {
+			aw_err("Only support custom waveforms\n");
+			ret = -EINVAL;
+			goto exit;
+		}
+
+		if (effect->u.periodic.custom_len != sizeof(struct custom_fifo_data)) {
+			aw_err("Only support custom FIFO data\n");
+			ret = -EINVAL;
+			goto exit;
+		}
+
+		ret = upload_custom_effect(aw_haptic,
+					   effect->u.periodic.custom_data,
+					   effect->u.periodic.magnitude);
+		if (ret) {
+			aw_err("Failed to upload custom effect\n");
+			goto exit;
+		}
+		break;
+	default:
+		aw_err("Unsupported effect type: %d", effect->type);
+		break;
+	}
+
+exit:
+	mutex_unlock(&aw_haptic->lock);
+
+	return 0;
+}
+
+static int input_playback(struct input_dev *dev, int effect_id, int val)
+{
+	struct aw_haptic *aw_haptic = input_get_drvdata(dev);
+
+	if (val > 0)
+		aw_haptic->state = 1;
+	if (val <= 0)
+		aw_haptic->state = 0;
+
+	if (!aw_haptic->state)
+		return 0;
+
+	switch (aw_haptic->activate_mode) {
+	case AW_RAM_MODE:
+		schedule_work(&aw_haptic->vibrator_work);
+		break;
+	case AW_RAM_LOOP_MODE:
+		schedule_work(&aw_haptic->vibrator_work);
+		break;
+	case AW_RTP_MODE:
+		schedule_work(&aw_haptic->rtp_work);
+		break;
+	}
+
+	return 0;
+}
+
+static int input_erase(struct input_dev *dev, int effect_id)
+{
+	struct aw_haptic *aw_haptic = input_get_drvdata(dev);
+	aw_haptic->activate_mode = AW_STANDBY_MODE;
+	return 0;
+}
+
+static void input_set_gain(struct input_dev *dev, uint16_t gain)
+{
+}
+
+static int input_framework_init(struct aw_haptic *aw_haptic)
+{
+	struct input_dev *input_dev;
+	int ret = 0;
+
+	input_dev = devm_input_allocate_device(aw_haptic->dev);
+	if (input_dev == NULL)
+		return -ENOMEM;
+	input_dev->name = "awinic_haptic";
+	input_set_drvdata(input_dev, aw_haptic);
+	aw_haptic->input_dev = input_dev;
+	input_set_capability(input_dev, EV_FF, FF_GAIN);
+	input_set_capability(input_dev, EV_FF, FF_CONSTANT);
+	input_set_capability(input_dev, EV_FF, FF_PERIODIC);
+	input_set_capability(input_dev, EV_FF, FF_CUSTOM);
+	ret = input_ff_create(input_dev, 1);
+	if (ret < 0) {
+		aw_err("create input FF device failed, rc=%d\n", ret);
+		return ret;
+	}
+	input_dev->ff->upload = input_upload_effect;
+	input_dev->ff->playback = input_playback;
+	input_dev->ff->erase = input_erase;
+	input_dev->ff->set_gain = input_set_gain;
+	ret = input_register_device(input_dev);
+	if (ret < 0) {
+		aw_err("register input device failed, rc=%d\n", ret);
+		input_ff_destroy(aw_haptic->input_dev);
+		return ret;
+	}
+	return ret;
+}
+#endif
+
 static enum hrtimer_restart vibrator_timer_func(struct hrtimer *timer)
 {
 	struct aw_haptic *aw_haptic = container_of(timer, struct aw_haptic,
@@ -835,11 +1017,14 @@ static void rtp_work_routine(struct work_struct *work)
 	uint8_t reg_val = 0;
 	int cnt = 200;
 	int ret = -1;
-	const struct firmware *rtp_file;
+	const struct firmware *rtp_file = NULL;
 	struct aw_haptic *aw_haptic = container_of(work, struct aw_haptic,
 						   rtp_work);
 
 	mutex_lock(&aw_haptic->rtp_lock);
+	if (aw_haptic->rtp_custom)
+		goto skip_firmware_load;
+
 	aw_haptic->rtp_routine_on = 1;
 	/* fw loaded */
 	ret = request_firmware(&rtp_file,
@@ -866,6 +1051,8 @@ static void rtp_work_routine(struct work_struct *work)
 	aw_info("rtp file:[%s] size = %dbytes",
 		aw_rtp_name[aw_haptic->rtp_file_num], aw_rtp->len);
 	memcpy(aw_rtp->data, rtp_file->data, rtp_file->size);
+
+skip_firmware_load:
 	mutex_unlock(&aw_haptic->rtp_lock);
 	release_firmware(rtp_file);
 	mutex_lock(&aw_haptic->lock);
@@ -1866,6 +2053,7 @@ static ssize_t activate_mode_store(struct device *dev,
 		return rc;
 	mutex_lock(&aw_haptic->lock);
 	aw_haptic->activate_mode = val;
+	aw_haptic->rtp_custom = false;
 	mutex_unlock(&aw_haptic->lock);
 	return count;
 }
@@ -2981,6 +3169,11 @@ static int aw_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 
 	i2c_set_clientdata(i2c, aw_haptic);
 	dev_set_drvdata(&i2c->dev, aw_haptic);
+#ifdef AW_INPUT_FRAMEWORK
+	ret = input_framework_init(aw_haptic);
+	if (ret < 0)
+		goto err_parse_dt;
+#endif
 
 	/* aw_haptic rst & int */
 	if (np) {
