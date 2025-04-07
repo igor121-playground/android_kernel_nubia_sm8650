@@ -725,6 +725,7 @@ static void vibrator_work_routine(struct work_struct *work)
 						   vibrator_work);
 
 	mutex_lock(&aw_haptic->lock);
+	hrtimer_cancel(&aw_haptic->timer);
 	aw_haptic->func->upload_lra(aw_haptic, AW_F0_CALI_LRA);
 	/* Enter standby mode */
 	aw_haptic->func->play_stop(aw_haptic);
@@ -1762,7 +1763,6 @@ static ssize_t activate_store(struct device *dev, struct device_attribute *attr,
 		return count;
 	}
 	mutex_lock(&aw_haptic->lock);
-	hrtimer_cancel(&aw_haptic->timer);
 	aw_haptic->state = val;
 	mutex_unlock(&aw_haptic->lock);
 	queue_work(aw_haptic->work_queue, &aw_haptic->vibrator_work);
@@ -1833,7 +1833,6 @@ static ssize_t activate_aw_store(struct device *dev, struct device_attribute *at
 		return count;
 	}
 	mutex_lock(&aw_haptic->lock);
-	hrtimer_cancel(&aw_haptic->timer);
 	aw_haptic->state = val;
 	mutex_unlock(&aw_haptic->lock);
 	queue_work(aw_haptic->work_queue, &aw_haptic->vibrator_work);
