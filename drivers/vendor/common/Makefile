@@ -2,3 +2,4 @@
 obj-$(CONFIG_POWER_VENDOR_COMMON) += power/
 obj-$(CONFIG_SOC_FAN) += fan/
 obj-$(CONFIG_AW9620X_SAR) += aw96205/
+obj-y += touchscreen_v2/goodix_berlin_driver_9916r/
