@@ -88,7 +88,6 @@
 /* #define AW_SND_SOC_CODEC */
 /* #define AW869X_MUL_GET_F0 */
 //[PIKE-1043] Upgrade richtap vibrator paramters by luoming0812 at 20210918
-#define AAC_RICHTAP_SUPPORT
 #define AW_INPUT_FRAMEWORK
 /*********************************************************
  *
