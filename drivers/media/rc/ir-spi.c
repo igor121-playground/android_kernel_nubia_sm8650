@@ -20,9 +20,10 @@
 
 struct ir_spi_data {
 	u32 freq;
+	u32 max_buf_size;
 	bool negated;
 
-	u16 tx_buf[IR_SPI_MAX_BUFSIZE];
+	u16 *tx_buf;
 	u16 pulse;
 	u16 space;
 
@@ -48,7 +49,7 @@ static int ir_spi_tx(struct rc_dev *dev,
 
 		periods = DIV_ROUND_CLOSEST(buffer[i] * idata->freq, 1000000);
 
-		if (len + periods >= IR_SPI_MAX_BUFSIZE)
+		if (len + periods >= idata->max_buf_size)
 			return -EINVAL;
 
 		/*
@@ -140,6 +141,15 @@ static int ir_spi_probe(struct spi_device *spi)
 	ret = of_property_read_u8(spi->dev.of_node, "duty-cycle", &dc);
 	if (ret)
 		dc = 50;
+
+	ret = of_property_read_u32(spi->dev.of_node, "max-buf-size",
+				   &idata->max_buf_size);
+	if (ret)
+		idata->max_buf_size = IR_SPI_MAX_BUFSIZE;
+
+	idata->tx_buf = devm_kzalloc(&spi->dev, idata->max_buf_size, GFP_KERNEL);
+	if (!idata->tx_buf)
+		return -ENOMEM;
 
 	/* ir_spi_set_duty_cycle cannot fail,
 	 * it returns int to be compatible with the
