@@ -18,6 +18,7 @@
 #include "goodix_ts_core.h"
 #include <linux/rtc.h>
 #include <linux/timer.h>
+#include <linux/proc_fs.h>
 #include <linux/version.h>
 #include <linux/fs.h>
 #include <asm/uaccess.h>
