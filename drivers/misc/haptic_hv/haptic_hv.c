@@ -428,6 +428,7 @@ static void ram_vbat_comp(struct aw_haptic *aw_haptic, bool flag)
 	}
 }
 
+#if 0
 static int f0_cali(struct aw_haptic *aw_haptic)
 {
 	char f0_cali_lra = 0;
@@ -680,6 +681,7 @@ static void rtp_trim_lra_cali(struct aw_haptic *aw_haptic)
 	}
 #endif
 }
+#endif
 
 #ifdef AW_INPUT_FRAMEWORK
 static void set_gain(struct aw_haptic *aw_haptic, int16_t gain)
@@ -1616,6 +1618,7 @@ static void ram_work_init(struct aw_haptic *aw_haptic)
  * haptic audio
  *
  *****************************************************/
+#if 0
 static int audio_ctrl_list_ins(struct aw_haptic_audio *haptic_audio,
 			       struct aw_haptic_ctr *haptic_ctr)
 {
@@ -1664,6 +1667,7 @@ static void audio_off(struct aw_haptic *aw_haptic)
 	audio_ctrl_list_clr(&aw_haptic->haptic_audio);
 	mutex_unlock(&aw_haptic->lock);
 }
+#endif
 
 static enum hrtimer_restart audio_timer_func(struct hrtimer *timer)
 {
@@ -1840,7 +1844,7 @@ static void vibrator_enable(struct timed_output_dev *dev, int value)
 	}
 	mutex_unlock(&aw_haptic->lock);
 }
-#else
+#elif 0
 static enum led_brightness brightness_get(struct led_classdev *cdev)
 {
 	struct aw_haptic *aw_haptic = container_of(cdev, struct aw_haptic,
@@ -1871,6 +1875,7 @@ static void brightness_set(struct led_classdev *cdev, enum led_brightness level)
 }
 #endif
 
+#if 0
 static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
@@ -3051,6 +3056,7 @@ static struct attribute *vibrator_attributes[] = {
 static struct attribute_group vibrator_attribute_group = {
 	.attrs = vibrator_attributes
 };
+#endif
 
 static int vibrator_init(struct aw_haptic *aw_haptic)
 {
@@ -3073,7 +3079,7 @@ static int vibrator_init(struct aw_haptic *aw_haptic)
 		aw_err("error creating sysfs attr files");
 		return ret;
 	}
-#else
+#elif 0
 	aw_info("loaded in leds_cdev framework!");
 	aw_haptic->vib_dev.name = "vibrator";
 	aw_haptic->vib_dev.brightness_get = brightness_get;
