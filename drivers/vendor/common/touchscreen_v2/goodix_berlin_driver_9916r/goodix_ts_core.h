@@ -60,8 +60,8 @@
 #define GOODIX_RETRY_5					5
 #define GOODIX_RETRY_10					10
 
-#define TS_DEFAULT_FIRMWARE				"goodix_firmware.bin"
-#define TS_DEFAULT_CFG_BIN				"goodix_cfg_group.bin"
+#define TS_DEFAULT_FIRMWARE				"goodix_firmware_9916r.bin"
+#define TS_DEFAULT_CFG_BIN				"goodix_cfg_group_9916r.bin"
 
 enum GOODIX_GESTURE_TYP {
 	GESTURE_SINGLE_TAP = (1 << 0),
