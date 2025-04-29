@@ -523,7 +523,10 @@ struct goodix_ts_core {
 	struct notifier_block ts_notifier;
 	struct goodix_ts_esd ts_esd;
 
-#if IS_ENABLED(CONFIG_FB)
+#if IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER)
+	void *notifier_cookie;
+	const char *touch_environment;
+#elif IS_ENABLED(CONFIG_FB)
 	struct notifier_block fb_notifier;
 #endif
 };
