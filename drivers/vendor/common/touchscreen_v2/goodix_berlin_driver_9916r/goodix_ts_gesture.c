@@ -318,7 +318,7 @@ static int gsx_gesture_ist(struct goodix_ts_core *cd,
 	}
 
 re_send_ges_cmd:
-	if (hw_ops->gesture(cd, 0))
+	if (hw_ops->gesture(cd, cd->gesture_type))
 		ts_info("warning: failed re_send gesture cmd");
 	return EVT_CANCEL_IRQEVT;
 }
@@ -340,7 +340,7 @@ static int gsx_gesture_before_suspend(struct goodix_ts_core *cd,
 	if (cd->gesture_type == 0)
 		return EVT_CONTINUE;
 
-	ret = hw_ops->gesture(cd, 0);
+	ret = hw_ops->gesture(cd, cd->gesture_type);
 	if (ret)
 		ts_err("failed enter gesture mode");
 	else

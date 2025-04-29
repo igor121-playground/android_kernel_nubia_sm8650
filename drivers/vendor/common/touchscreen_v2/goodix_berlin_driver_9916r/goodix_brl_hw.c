@@ -272,18 +272,72 @@ int brl_resume(struct goodix_ts_core *cd)
 	return cd->hw_ops->reset(cd, GOODIX_NORMAL_RESET_DELAY_MS);
 }
 
-#define GOODIX_GESTURE_CMD_BA	0x12
-#define GOODIX_GESTURE_CMD		0xA6
+#define GOODIX_GESTURE_CMD_BA			0x12
+#define GOODIX_GESTURE_CMD			0xA6
+#define GOODIX_GESTURE_DATA_START		0x00
+#define GOODIX_GESTURE_DATA_OPEN_DOUBLE		0x10
+#define GOODIX_GESTURE_DATA_CLOSE_DOUBLE	0x80
 int brl_gesture(struct goodix_ts_core *cd, int gesture_type)
 {
 	struct goodix_ts_cmd cmd;
 
-	if (cd->bus->ic_type == IC_TYPE_BERLIN_A)
+	if (cd->bus->ic_type == IC_TYPE_BERLIN_A) {
 		cmd.cmd = GOODIX_GESTURE_CMD_BA;
-	else
+		cmd.len = 6;
+		switch (gesture_type) {
+		case (GESTURE_SINGLE_TAP | GESTURE_DOUBLE_TAP | GESTURE_FOD_PRESS):
+			cmd.data[0] = GOODIX_GESTURE_DATA_START;
+			cmd.data[1] = GOODIX_GESTURE_DATA_START;
+			ts_info("single_double_finger");
+			break;
+		case (GESTURE_SINGLE_TAP | GESTURE_FOD_PRESS):
+			cmd.data[0] = GOODIX_GESTURE_DATA_CLOSE_DOUBLE;
+			cmd.data[1] = GOODIX_GESTURE_DATA_START;
+			ts_info("single_finger");
+			break;
+		case (GESTURE_DOUBLE_TAP):
+			cmd.data[0] = GOODIX_GESTURE_DATA_START;
+			cmd.data[1] = GOODIX_GESTURE_DATA_OPEN_DOUBLE;
+			ts_info("double");
+			break;
+		default:
+			ts_err("status is %d error!", gesture_type);
+			return 0;
+		}
+	} else {
 		cmd.cmd = GOODIX_GESTURE_CMD;
-	cmd.len = 5;
-	cmd.data[0] = gesture_type;
+		cmd.len = 6;
+		switch (gesture_type) {
+		case (GESTURE_SINGLE_TAP | GESTURE_DOUBLE_TAP | GESTURE_FOD_PRESS):
+		case (GESTURE_DOUBLE_TAP | GESTURE_FOD_PRESS):
+			cmd.data[0] = 0x00;
+			cmd.data[1] = 0x00;
+			cmd.data[3] = 0xAC;
+			ts_info("single_double_finger");
+			break;
+		case (GESTURE_SINGLE_TAP | GESTURE_DOUBLE_TAP):
+			cmd.data[0] = 0x00;
+			cmd.data[1] = 0x20;
+			cmd.data[3] = 0xCC;
+			ts_info("single_double");
+			break;
+		case (GESTURE_SINGLE_TAP | GESTURE_FOD_PRESS):
+		case (GESTURE_SINGLE_TAP):
+		case (GESTURE_FOD_PRESS):
+			cmd.data[0] = GOODIX_GESTURE_DATA_CLOSE_DOUBLE;
+			cmd.data[1] = GOODIX_GESTURE_DATA_START;
+			ts_info("single_finger");
+			break;
+		case (GESTURE_DOUBLE_TAP):
+			cmd.data[0] = GOODIX_GESTURE_DATA_START;
+			cmd.data[1] = 0x30;
+			ts_info("double");
+			break;
+		default:
+			ts_err("status is %d error!", gesture_type);
+			return 0;
+		}
+	}
 	if (cd->hw_ops->send_cmd(cd, &cmd))
 		ts_err("failed send gesture cmd");
 
