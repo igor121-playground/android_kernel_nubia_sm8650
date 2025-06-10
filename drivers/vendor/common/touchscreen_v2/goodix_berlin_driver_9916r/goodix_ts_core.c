@@ -1927,6 +1927,27 @@ static void goodix_suspend_work(struct work_struct *work)
 	goodix_ts_suspend(core_data);
 }
 
+static void goodix_gesture_work(struct work_struct *work)
+{
+	struct goodix_ts_core *core_data =
+		container_of(work, struct goodix_ts_core, gesture_work.work);
+
+	if (!atomic_read(&core_data->suspended))
+		return;
+
+	goodix_ts_resume(core_data);
+	goodix_ts_suspend(core_data);
+}
+
+void goodix_queue_gesture_write(struct goodix_ts_core *core_data, bool enable)
+{
+	if (!enable)
+		return;
+
+	queue_delayed_work(core_data->power_wq, &core_data->gesture_work,
+			   msecs_to_jiffies(100));
+}
+
 static void goodix_panel_notifier_callback(enum panel_event_notifier_tag tag,
 		 struct panel_event_notification *notification, void *client_data)
 {
@@ -2089,6 +2110,7 @@ int goodix_ts_stage2_init(struct goodix_ts_core *cd)
 	}
 	INIT_WORK(&cd->resume_work, goodix_resume_work);
 	INIT_WORK(&cd->suspend_work, goodix_suspend_work);
+	INIT_DELAYED_WORK(&cd->gesture_work, goodix_gesture_work);
 
 	if (active_panel)
 		goodix_register_for_panel_events(cd->bus->dev->of_node, cd);

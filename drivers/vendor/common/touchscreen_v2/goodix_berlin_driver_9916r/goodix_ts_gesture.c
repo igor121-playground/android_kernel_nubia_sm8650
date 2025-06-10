@@ -73,6 +73,7 @@ static ssize_t gsx_double_type_store(struct goodix_ext_module *module,
 		const char *buf, size_t count)
 {
 	struct gesture_module *gsx = module->priv_data;
+	bool enable = false;
 
 	if (!gsx)
 		return -EIO;
@@ -85,11 +86,16 @@ static ssize_t gsx_double_type_store(struct goodix_ext_module *module,
 	if (buf[0] == '1') {
 		ts_info("enable double tap");
 		gsx->ts_core->gesture_type |= GESTURE_DOUBLE_TAP;
+		enable = true;
 	} else if (buf[0] == '0') {
 		ts_info("disable double tap");
 		gsx->ts_core->gesture_type &= ~GESTURE_DOUBLE_TAP;
-	} else
+	} else {
 		ts_err("invalid cmd[%d]", buf[0]);
+		return count;
+	}
+
+	goodix_queue_gesture_write(gsx->ts_core, enable);
 
 	return count;
 }
@@ -116,6 +122,7 @@ static ssize_t gsx_single_type_store(struct goodix_ext_module *module,
 		const char *buf, size_t count)
 {
 	struct gesture_module *gsx = module->priv_data;
+	bool enable = false;
 
 	if (!gsx)
 		return -EIO;
@@ -128,11 +135,16 @@ static ssize_t gsx_single_type_store(struct goodix_ext_module *module,
 	if (buf[0] == '1') {
 		ts_info("enable single tap");
 		gsx->ts_core->gesture_type |= GESTURE_SINGLE_TAP;
+		enable = true;
 	} else if (buf[0] == '0') {
 		ts_info("disable single tap");
 		gsx->ts_core->gesture_type &= ~GESTURE_SINGLE_TAP;
-	} else
+	} else {
 		ts_err("invalid cmd[%d]", buf[0]);
+		return count;
+	}
+
+	goodix_queue_gesture_write(gsx->ts_core, enable);
 
 	return count;
 }
@@ -159,6 +171,7 @@ static ssize_t gsx_fod_type_store(struct goodix_ext_module *module,
 		const char *buf, size_t count)
 {
 	struct gesture_module *gsx = module->priv_data;
+	bool enable = false;
 
 	if (!gsx)
 		return -EIO;
@@ -171,11 +184,16 @@ static ssize_t gsx_fod_type_store(struct goodix_ext_module *module,
 	if (buf[0] == '1') {
 		ts_info("enable fod");
 		gsx->ts_core->gesture_type |= GESTURE_FOD_PRESS;
+		enable = true;
 	} else if (buf[0] == '0') {
 		ts_info("disable fod");
 		gsx->ts_core->gesture_type &= ~GESTURE_FOD_PRESS;
-	} else
+	} else {
 		ts_err("invalid cmd[%d]", buf[0]);
+		return count;
+	}
+
+	goodix_queue_gesture_write(gsx->ts_core, enable);
 
 	return count;
 }

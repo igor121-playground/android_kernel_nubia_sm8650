@@ -530,6 +530,7 @@ struct goodix_ts_core {
 	struct workqueue_struct *power_wq;
 	struct work_struct resume_work;
 	struct work_struct suspend_work;
+	struct delayed_work gesture_work;
 #elif IS_ENABLED(CONFIG_FB)
 	struct notifier_block fb_notifier;
 #endif
@@ -688,6 +689,7 @@ int goodix_do_fw_update(struct goodix_ic_config *ic_config, int mode);
 int goodix_get_ic_type(struct device_node *node, struct goodix_bus_interface *bus_inf);
 int gesture_module_init(void);
 void gesture_module_exit(void);
+void goodix_queue_gesture_write(struct goodix_ts_core *core_data, bool enable);
 int inspect_module_init(struct goodix_ts_core *core_data);
 void inspect_module_exit(void);
 int goodix_tools_init(void);
