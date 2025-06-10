@@ -337,6 +337,8 @@ static int gsx_gesture_before_suspend(struct goodix_ts_core *cd,
 	int ret;
 	const struct goodix_ts_hw_ops *hw_ops = cd->hw_ops;
 
+	cd->irq_wake_enabled = false;
+
 	if (cd->gesture_type == 0)
 		return EVT_CONTINUE;
 
@@ -348,6 +350,7 @@ static int gsx_gesture_before_suspend(struct goodix_ts_core *cd,
 
 	hw_ops->irq_enable(cd, true);
 	enable_irq_wake(cd->irq);
+	cd->irq_wake_enabled = true;
 
 	return EVT_CANCEL_SUSPEND;
 }
@@ -357,7 +360,7 @@ static int gsx_gesture_before_resume(struct goodix_ts_core *cd,
 {
 	const struct goodix_ts_hw_ops *hw_ops = cd->hw_ops;
 
-	if (cd->gesture_type == 0)
+	if (!cd->irq_wake_enabled)
 		return EVT_CONTINUE;
 
 	disable_irq_wake(cd->irq);

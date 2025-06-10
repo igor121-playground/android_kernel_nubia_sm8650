@@ -510,6 +510,7 @@ struct goodix_ts_core {
 	struct regulator *avdd;
 	struct regulator *iovdd;
 	unsigned char gesture_type;
+	bool irq_wake_enabled;
 
 	int power_on;
 	int irq;
