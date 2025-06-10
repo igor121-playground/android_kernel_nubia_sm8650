@@ -46,6 +46,9 @@ struct gesture_module {
 	atomic_t registered;
 	struct goodix_ts_core *ts_core;
 	struct goodix_ext_module module;
+	bool single_pressed;
+	bool double_pressed;
+	bool fod_pressed;
 };
 
 static struct gesture_module *gsx_gesture; /*allocated in gesture init module*/
@@ -100,6 +103,13 @@ static ssize_t gsx_double_type_store(struct goodix_ext_module *module,
 	return count;
 }
 
+static ssize_t gsx_double_show(struct goodix_ext_module *module, char *buf)
+{
+	struct gesture_module *gsx = module->priv_data;
+
+	return sprintf(buf, "%u\n", gsx->double_pressed);
+}
+
 static ssize_t gsx_single_type_show(struct goodix_ext_module *module,
 		char *buf)
 {
@@ -147,6 +157,13 @@ static ssize_t gsx_single_type_store(struct goodix_ext_module *module,
 	goodix_queue_gesture_write(gsx->ts_core, enable);
 
 	return count;
+}
+
+static ssize_t gsx_single_show(struct goodix_ext_module *module, char *buf)
+{
+	struct gesture_module *gsx = module->priv_data;
+
+	return sprintf(buf, "%u\n", gsx->single_pressed);
 }
 
 static ssize_t gsx_fod_type_show(struct goodix_ext_module *module,
@@ -198,14 +215,23 @@ static ssize_t gsx_fod_type_store(struct goodix_ext_module *module,
 	return count;
 }
 
+static ssize_t gsx_fod_show(struct goodix_ext_module *module, char *buf)
+{
+	struct gesture_module *gsx = module->priv_data;
+
+	return sprintf(buf, "%u\n", gsx->fod_pressed);
+}
 
 const struct goodix_ext_attribute gesture_attrs[] = {
 	__EXTMOD_ATTR(double_en, 0664,
 			gsx_double_type_show, gsx_double_type_store),
+	__EXTMOD_ATTR(double_pressed, 0600, gsx_double_show, NULL),
 	__EXTMOD_ATTR(single_en, 0664,
 			gsx_single_type_show, gsx_single_type_store),
+	__EXTMOD_ATTR(single_pressed, 0600, gsx_single_show, NULL),
 	__EXTMOD_ATTR(fod_en, 0664,
 			gsx_fod_type_show, gsx_fod_type_store),
+	__EXTMOD_ATTR(fod_pressed, 0600, gsx_fod_show, NULL),
 };
 
 static int gsx_gesture_init(struct goodix_ts_core *cd,
@@ -252,9 +278,9 @@ static int gsx_gesture_exit(struct goodix_ts_core *cd,
 static int gsx_gesture_ist(struct goodix_ts_core *cd,
 	struct goodix_ext_module *module)
 {
+	struct gesture_module *gsx = module->priv_data;
 	struct goodix_ts_hw_ops *hw_ops = cd->hw_ops;
 	struct goodix_ts_event gs_event = {0};
-	int fodx, fody, overlay_area;
 	int ret;
 
 	if (atomic_read(&cd->suspended) == 0 || cd->gesture_type == 0)
@@ -276,12 +302,8 @@ static int gsx_gesture_ist(struct goodix_ts_core *cd,
 	case GOODIX_GESTURE_SINGLE_TAP:
 		if (cd->gesture_type & GESTURE_SINGLE_TAP) {
 			ts_info("get SINGLE-TAP gesture");
-			input_report_key(cd->input_dev, KEY_WAKEUP, 1);
-			// input_report_key(cd->input_dev, KEY_GOTO, 1);
-			input_sync(cd->input_dev);
-			input_report_key(cd->input_dev, KEY_WAKEUP, 0);
-			// input_report_key(cd->input_dev, KEY_GOTO, 0);
-			input_sync(cd->input_dev);
+			gsx->single_pressed = true;
+			sysfs_notify(&module->kobj, NULL, "single_pressed");
 		} else {
 			ts_debug("not enable SINGLE-TAP");
 		}
@@ -289,10 +311,8 @@ static int gsx_gesture_ist(struct goodix_ts_core *cd,
 	case GOODIX_GESTURE_DOUBLE_TAP:
 		if (cd->gesture_type & GESTURE_DOUBLE_TAP) {
 			ts_info("get DOUBLE-TAP gesture");
-			input_report_key(cd->input_dev, KEY_WAKEUP, 1);
-			input_sync(cd->input_dev);
-			input_report_key(cd->input_dev, KEY_WAKEUP, 0);
-			input_sync(cd->input_dev);
+			gsx->double_pressed = true;
+			sysfs_notify(&module->kobj, NULL, "double_pressed");
 		} else {
 			ts_debug("not enable DOUBLE-TAP");
 		}
@@ -300,17 +320,8 @@ static int gsx_gesture_ist(struct goodix_ts_core *cd,
 	case GOODIX_GESTURE_FOD_DOWN:
 		if (cd->gesture_type & GESTURE_FOD_PRESS) {
 			ts_info("get FOD-DOWN gesture");
-			fodx = le16_to_cpup((__le16 *)gs_event.gesture_data);
-			fody = le16_to_cpup((__le16 *)(gs_event.gesture_data + 2));
-			overlay_area = gs_event.gesture_data[4];
-			ts_debug("fodx:%d fody:%d overlay_area:%d", fodx, fody, overlay_area);
-			input_report_key(cd->input_dev, BTN_TOUCH, 1);
-			input_mt_slot(cd->input_dev, 0);
-			input_mt_report_slot_state(cd->input_dev, MT_TOOL_FINGER, 1);
-			input_report_abs(cd->input_dev, ABS_MT_POSITION_X, fodx);
-			input_report_abs(cd->input_dev, ABS_MT_POSITION_Y, fody);
-			input_report_abs(cd->input_dev, ABS_MT_WIDTH_MAJOR, overlay_area);
-			input_sync(cd->input_dev);
+			gsx->fod_pressed = true;
+			sysfs_notify(&module->kobj, NULL, "fod_pressed");
 		} else {
 			ts_debug("not enable FOD-DOWN");
 		}
@@ -318,14 +329,6 @@ static int gsx_gesture_ist(struct goodix_ts_core *cd,
 	case GOODIX_GESTURE_FOD_UP:
 		if (cd->gesture_type & GESTURE_FOD_PRESS) {
 			ts_info("get FOD-UP gesture");
-			// fodx = le16_to_cpup((__le16 *)gs_event.gesture_data);
-			// fody = le16_to_cpup((__le16 *)(gs_event.gesture_data + 2));
-			// overlay_area = gs_event.gesture_data[4];
-			input_report_key(cd->input_dev, BTN_TOUCH, 0);
-			input_mt_slot(cd->input_dev, 0);
-			input_mt_report_slot_state(cd->input_dev,
-					MT_TOOL_FINGER, 0);
-			input_sync(cd->input_dev);
 		} else {
 			ts_debug("not enable FOD-UP");
 		}
@@ -377,6 +380,11 @@ static int gsx_gesture_before_resume(struct goodix_ts_core *cd,
 	struct goodix_ext_module *module)
 {
 	const struct goodix_ts_hw_ops *hw_ops = cd->hw_ops;
+	struct gesture_module *gsx = module->priv_data;
+
+	gsx->single_pressed = false;
+	gsx->double_pressed = false;
+	gsx->fod_pressed = false;
 
 	if (!cd->irq_wake_enabled)
 		return EVT_CONTINUE;
