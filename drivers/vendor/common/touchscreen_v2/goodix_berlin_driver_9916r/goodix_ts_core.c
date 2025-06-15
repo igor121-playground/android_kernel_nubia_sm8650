@@ -801,6 +801,27 @@ static ssize_t die_info_show(struct device  *dev,
 	return ret;
 }
 
+static ssize_t goodix_ts_rotation_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
+{
+	struct goodix_ts_core *cd = dev_get_drvdata(dev);
+	int rotation;
+	int ret;
+
+	if (!buf || count <= 0)
+		return -EINVAL;
+
+	if (kstrtoint(buf, 10, &rotation))
+		return -EINVAL;
+
+	ret = cd->hw_ops->set_display_rotation(cd, rotation);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
 static DEVICE_ATTR(driver_info, 0440,
 		driver_info_show, NULL);
 static DEVICE_ATTR(chip_info, 0440,
@@ -821,6 +842,8 @@ static DEVICE_ATTR(debug_log, 0664,
 		goodix_ts_debug_log_show, goodix_ts_debug_log_store);
 static DEVICE_ATTR(die_info, 0440,
 		die_info_show, NULL);
+static DEVICE_ATTR(rotation, 0220,
+		NULL, goodix_ts_rotation_store);
 
 static struct attribute *sysfs_attrs[] = {
 	&dev_attr_driver_info.attr,
@@ -833,6 +856,7 @@ static struct attribute *sysfs_attrs[] = {
 	&dev_attr_esd_info.attr,
 	&dev_attr_debug_log.attr,
 	&dev_attr_die_info.attr,
+	&dev_attr_rotation.attr,
 	NULL,
 };
 

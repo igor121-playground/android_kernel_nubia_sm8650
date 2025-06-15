@@ -1628,6 +1628,38 @@ exit:
 	return ret;
 }
 
+int zte_set_display_rotation(struct goodix_ts_core *cd, int rotation)
+{
+	struct goodix_ts_cmd cmd;
+
+	if (rotation == 180)
+		return 0;
+
+	cmd.cmd = 0x17;
+	cmd.len = 0x6;
+
+	switch (rotation) {
+	case 0:
+		cmd.data[0] = 0x00;
+		cmd.data[1] = 0x00;
+		break;
+	case 90:
+		cmd.data[0] = 0x40;
+		/* default to level 1 */
+		cmd.data[1] = 0x40;
+		break;
+	case 270:
+		cmd.data[0] = 0x80;
+		/* default to level 1 */
+		cmd.data[1] = 0x40;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return cd->hw_ops->send_cmd(cd, &cmd);
+}
+
 static struct goodix_ts_hw_ops brl_hw_ops = {
 	.power_on = brl_power_on,
 	.resume = brl_resume,
@@ -1647,6 +1679,7 @@ static struct goodix_ts_hw_ops brl_hw_ops = {
 	.event_handler = brl_event_handler,
 	.after_event_handler = brl_after_event_handler,
 	.get_capacitance_data = brl_get_capacitance_data,
+	.set_display_rotation = zte_set_display_rotation,
 };
 
 struct goodix_ts_hw_ops *goodix_get_hw_ops(void)
