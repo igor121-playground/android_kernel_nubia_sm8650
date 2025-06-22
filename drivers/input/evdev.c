@@ -1337,6 +1337,7 @@ static void evdev_cleanup(struct evdev *evdev)
 static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
 			 const struct input_device_id *id)
 {
+	char symlink_name[128];
 	struct evdev *evdev;
 	int minor;
 	int dev_no;
@@ -1376,6 +1377,13 @@ static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
 	evdev->dev.parent = &dev->dev;
 	evdev->dev.release = evdev_free;
 	device_initialize(&evdev->dev);
+
+	snprintf(symlink_name, sizeof(symlink_name), "fakei%u", dev_no);
+	error = sysfs_create_link(class_kobj(&input_class), &dev->dev.kobj,
+				  symlink_name);
+	if (error)
+		dev_err(&dev->dev, "%s: failed to create fake event symlink: %d\n",
+			__func__, error);
 
 	error = input_register_handle(&evdev->handle);
 	if (error)
