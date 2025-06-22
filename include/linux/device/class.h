@@ -282,5 +282,6 @@ extern void class_destroy(struct class *cls);
 	__class_create(owner, name, &__key);	\
 })
 
+struct kobject *class_kobj(struct class *cls);
 
 #endif	/* _DEVICE_CLASS_H_ */

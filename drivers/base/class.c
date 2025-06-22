@@ -150,6 +150,11 @@ static void class_remove_groups(struct class *cls,
 	return sysfs_remove_groups(&cls->p->subsys.kobj, groups);
 }
 
+struct kobject *class_kobj(struct class *cls)
+{
+	return &cls->p->subsys.kobj;
+}
+
 int __class_register(struct class *cls, struct lock_class_key *key)
 {
 	struct subsys_private *cp;
