@@ -3277,7 +3277,9 @@ static int aw_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 		aw_err("Error creating aw_haptic_vibrator_work_queue");
 		goto err_irq_config;
 	}
+#if 0
 	aw_haptic->func->creat_node(aw_haptic);
+#endif
 	ram_work_init(aw_haptic);
 #ifdef AAC_RICHTAP_SUPPORT
 	aw_haptic->rtp_ptr = kmalloc(RICHTAP_MMAP_BUF_SIZE * RICHTAP_MMAP_BUF_SUM, GFP_KERNEL);
