@@ -39,9 +39,6 @@ static int debug_value=0;
 #endif
 #define nubia_hw_version_debug(fmt, args...) do {if(debug_value==1)printk(KERN_INFO "[nubia_hw_version]"fmt, ##args);} while(0)
 
-#ifdef CONFIG_NUBIA_HW_VER_BY_ADC
-int nubia_hw_pcb_mv = 0;
-#else
 uint8_t	nubia_pcb_gpio1_v = 0;
 uint8_t	nubia_pcb_gpio2_v = 0;
 uint8_t	nubia_pcb_gpio3_v = 0;
@@ -49,7 +46,6 @@ uint8_t	nubia_pcb_gpio4_v = 0;
 int pcb_gpio3 = 0;
 int pcb_gpio4 = 0;
 
-#endif
 uint8_t	nubia_rf_gpio1_v = 0;
 uint8_t	nubia_rf_gpio2_v = 0;
 #ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
@@ -143,29 +139,6 @@ err_pctrl_get:
 	return ret;
 }
 
-//开始进入第一大部分-读取pcb版本部分
-#ifdef CONFIG_NUBIA_HW_VER_BY_ADC
-const struct hw_pcb_adc_map_str* nubia_get_pcb_table_item_by_adc(const struct hw_pcb_adc_map_str *pts,
-	   uint32_t tablesize, int input)
-{
-	uint32_t i = 0;
-
-	if(NULL == pts)
-		return -EINVAL;
-
-	while (i < tablesize){
-		if((pts[i].low_mv <= input) && (input <= pts[i].high_mv))
-			break;
-		else
-			i++;
-	}
-
-	if(i < tablesize)
-		return &pts[i];
-	else
-		return NULL;
-}
-#else
 const struct hw_pcb_gpio_map_str* nubia_get_pcb_table_item_by_gpio(const struct hw_pcb_gpio_map_str *pts,
 		uint32_t tablesize)
 {
@@ -189,20 +162,13 @@ const struct hw_pcb_gpio_map_str* nubia_get_pcb_table_item_by_gpio(const struct 
 	else
 		return NULL;
 }
-#endif
-//读取pcb type，给其他驱动模块使用
+
+//锟斤拷取pcb type锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷模锟斤拷使锟斤拷
 int nubia_get_hw_id(void)
 {
-#ifdef CONFIG_NUBIA_HW_VER_BY_ADC
-	const struct hw_pcb_adc_map_str *pts_item;
-	pts_item = nubia_get_pcb_table_item_by_adc(hw_pcb_adc_map,
-					ARRAY_SIZE(hw_pcb_adc_map),
-					nubia_hw_pcb_mv);
-#else
 	const struct hw_pcb_gpio_map_str *pts_item;
 	pts_item = nubia_get_pcb_table_item_by_gpio(hw_pcb_gpio_map,
                         ARRAY_SIZE(hw_pcb_gpio_map));
-#endif
 	if ( NULL != pts_item){
 		nubia_hw_version_debug("pcb_type=%x\n", pts_item->pcb_type);
 		return pts_item->pcb_type;
@@ -215,16 +181,9 @@ EXPORT_SYMBOL_GPL(nubia_get_hw_id);
 //读取pcb版本，给其他驱动模块使用
 void nubia_get_hw_pcb_version(char* result)
 {
-#ifdef CONFIG_NUBIA_HW_VER_BY_ADC
-	const struct hw_pcb_adc_map_str *pts_item;
-	pts_item = nubia_get_pcb_table_item_by_adc(hw_pcb_adc_map,
-						ARRAY_SIZE(hw_pcb_adc_map),
-						nubia_hw_pcb_mv);
-#else
 	const struct hw_pcb_gpio_map_str *pts_item;
 	pts_item = nubia_get_pcb_table_item_by_gpio(hw_pcb_gpio_map,
 							ARRAY_SIZE(hw_pcb_gpio_map));
-#endif
 	if(!result)
 		return;
 
@@ -595,8 +554,6 @@ static const struct of_device_id of_match[] = {
         { .compatible = "nubia_hw_gpio_ctrl" },
         { }
 };
-#ifdef CONFIG_NUBIA_HW_VER_BY_ADC
-#else
 static int  nubia_parse_hw_ver_gpio_dt(struct device_node *node,int* pcb_gpio1_v, int* pcb_gpio2_v)
 {
 	int pcb_gpio1 = 0;
@@ -661,7 +618,6 @@ static int  nubia_parse_hw_ver_gpio_dt(struct device_node *node,int* pcb_gpio1_v
 
 	return 0;
 }
-#endif
 
 static int  nubia_parse_hw_ver_rf_gpio_dt(struct device_node *node,int* rf_gpio1_v, int* rf_gpio2_v)
 {
@@ -736,24 +692,6 @@ static int  nubia_parse_hw_ver_config_gpio_dt(struct device_node *node,int* conf
 }
 #endif
 
-#ifdef CONFIG_NUBIA_HW_VER_BY_ADC
-static int  nubia_parse_hw_ver_adc_dt(struct device_node *node, int* pcb_adc_channel_v)
-{
-	int pm_adc_channel = 0;
-	int rc = 0;
-
-	rc = of_property_read_u32(node, "qcom,pcb-pm-adc_channel", &pm_adc_channel);
-	nubia_hw_version_debug("nubia pm channel=%x\n",pm_adc_channel);
-
-	if (rc){
-		nubia_hw_version_debug("invalid nubia pcb channel=%x\n",pm_adc_channel);
-		return -EPROBE_DEFER;
-	}
-
-	*pcb_adc_channel_v =pm_adc_channel;
-	return 0;
-}
-#endif
 #ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
 #else
 static int  nubia_parse_hw_ver_config_adc_dt(struct device_node *node,int* config_pm_adc_channel_v)
@@ -773,7 +711,7 @@ static int  nubia_parse_hw_ver_config_adc_dt(struct device_node *node,int* confi
 	return 0;
 }
 #endif
-#if !defined(CONFIG_NUBIA_HW_CONFIG_BY_GPIO) || defined(CONFIG_NUBIA_HW_VER_BY_ADC)
+#if !defined(CONFIG_NUBIA_HW_CONFIG_BY_GPIO)
 static int	nubia_parse_hw_ver_read_adc(int pm_adc_channel_v,int *result)
 {
 	struct qpnp_vadc_result adc_result;
@@ -798,12 +736,8 @@ static int	nubia_parse_hw_ver_read_adc(int pm_adc_channel_v,int *result)
 #endif
 static int  nubia_hw_ver_probe(struct platform_device *pdev)
 {
-#ifdef CONFIG_NUBIA_HW_VER_BY_ADC
-	int pcb_adc_channel = 0;
-#else
 	int pcb_gpio1 = 0;
 	int pcb_gpio2 = 0;
-#endif
 	int rf_gpio1 = 0;
 	int rf_gpio2 = 0;
 #ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
@@ -814,7 +748,7 @@ static int  nubia_hw_ver_probe(struct platform_device *pdev)
 #endif
 	int rc = 0;
 	struct device_node *node = pdev->dev.of_node;
-#if !defined(CONFIG_NUBIA_HW_CONFIG_BY_GPIO) || defined(CONFIG_NUBIA_HW_VER_BY_ADC)
+#if !defined(CONFIG_NUBIA_HW_CONFIG_BY_GPIO)
 	int adc_result;
 #endif
 
@@ -824,7 +758,7 @@ static int  nubia_hw_ver_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	}
 
-#if !defined(CONFIG_NUBIA_HW_CONFIG_BY_GPIO) || defined(CONFIG_NUBIA_HW_VER_BY_ADC)
+#if !defined(CONFIG_NUBIA_HW_CONFIG_BY_GPIO)
 	penv = devm_kzalloc(&pdev->dev, sizeof(*penv), GFP_KERNEL);
 	if (!penv) {
 		dev_err(&pdev->dev, "cannot allocate device memory.\n");
@@ -842,23 +776,11 @@ static int  nubia_hw_ver_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 #endif
 
-#ifdef CONFIG_NUBIA_HW_VER_BY_ADC
-	rc = nubia_parse_hw_ver_adc_dt(node,&pcb_adc_channel);
-	if (rc < 0)
-		return rc;
-
-	rc = nubia_parse_hw_ver_read_adc(pcb_adc_channel,&adc_result);
-	if (rc < 0)
-		return rc;
-
-	nubia_hw_pcb_mv = adc_result;
-#else
 	rc = nubia_parse_hw_ver_gpio_dt(node,&pcb_gpio1,&pcb_gpio2);
 	if (rc < 0){
 		dev_err(&pdev->dev,"parse pcb_gpio error!!\n");
 		return rc;
 	}
-#endif
 	rc = nubia_parse_hw_ver_rf_gpio_dt(node,&rf_gpio1,&rf_gpio2);
 	if (rc < 0)
 		return rc;
@@ -879,14 +801,11 @@ static int  nubia_hw_ver_probe(struct platform_device *pdev)
 #endif
 	if (nubia_gpio_ctrl(pdev))
 		return -ENODEV;
-#ifdef CONFIG_NUBIA_HW_VER_BY_ADC
-#else
 	nubia_pcb_gpio1_v = nubia_get_gpio_status(pcb_gpio1);
 	nubia_pcb_gpio2_v = nubia_get_gpio_status(pcb_gpio2);
 
 	nubia_pcb_gpio3_v = nubia_get_gpio_status(pcb_gpio3);
 	nubia_pcb_gpio4_v = nubia_get_gpio_status(pcb_gpio4);
-#endif
 //if use pm gpio
 	nubia_rf_gpio1_v = nubia_get_gpio_status(rf_gpio1);
 	nubia_rf_gpio2_v = nubia_get_gpio_status(rf_gpio2);
@@ -898,8 +817,6 @@ static int  nubia_hw_ver_probe(struct platform_device *pdev)
 	msleep(20);
 	if (nubia_gpio_ctrl1(pdev))
 		return -ENODEV;
-#ifdef CONFIG_NUBIA_HW_VER_BY_ADC
-#else
 	nubia_pcb_gpio1_v += nubia_get_gpio_status(pcb_gpio1);
 	nubia_pcb_gpio2_v += nubia_get_gpio_status(pcb_gpio2);
 	nubia_pcb_gpio3_v += nubia_get_gpio_status(pcb_gpio3);
@@ -915,7 +832,6 @@ static int  nubia_hw_ver_probe(struct platform_device *pdev)
 			printk(KERN_ERR"pcb version: unknown");
 
 	}
-#endif
 	nubia_rf_gpio1_v += nubia_get_gpio_status(rf_gpio1);
 	nubia_rf_gpio2_v += nubia_get_gpio_status(rf_gpio2);
 	nubia_hw_version_debug("nubia_rf_gpio1_v=%x,nubia_rf_gpio2_v=%x\n",nubia_rf_gpio1_v,nubia_rf_gpio2_v);
