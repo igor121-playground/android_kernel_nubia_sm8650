@@ -163,7 +163,6 @@ const struct hw_pcb_gpio_map_str* nubia_get_pcb_table_item_by_gpio(const struct 
 		return NULL;
 }
 
-//锟斤拷取pcb type锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷模锟斤拷使锟斤拷
 int nubia_get_hw_id(void)
 {
 	const struct hw_pcb_gpio_map_str *pts_item;
@@ -178,7 +177,6 @@ int nubia_get_hw_id(void)
 }
 EXPORT_SYMBOL_GPL(nubia_get_hw_id);
 
-//读取pcb版本，给其他驱动模块使用
 void nubia_get_hw_pcb_version(char* result)
 {
 	const struct hw_pcb_gpio_map_str *pts_item;
@@ -194,7 +192,6 @@ void nubia_get_hw_pcb_version(char* result)
 }
 EXPORT_SYMBOL_GPL(nubia_get_hw_pcb_version);
 
-//读取pcb版本，给上层同事使用
 static ssize_t nubia_hw_pcb_version_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
@@ -208,9 +205,6 @@ static ssize_t nubia_hw_pcb_version_show(struct kobject *kobj,
 static struct kobj_attribute pcb_version_attr=
 	__ATTR(pcb_version, 0664, nubia_hw_pcb_version_show, NULL);
 
-//读取Pcb部分结束
-
-//用于区分NX659J or NX659J_v1s
 // value: 2 ----v1s ; 0 ---- no v1s
 static ssize_t nubia_charge_version_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
@@ -312,7 +306,6 @@ static struct kobj_attribute pcb_version_trans_attr=
 
 
 
-//开始进入第二部分-读取rf部分
 const char* nubia_get_rf_band_by_gpio(const struct hw_rf_band_gpio_map_str *pts,
 		uint32_t tablesize)
 {
@@ -339,7 +332,6 @@ const char* nubia_get_rf_band_by_gpio(const struct hw_rf_band_gpio_map_str *pts,
 }
 EXPORT_SYMBOL_GPL(nubia_get_rf_band_by_gpio);
 
-//读取射频类型给上层使用
 static ssize_t nubia_hw_rf_band_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
@@ -359,9 +351,6 @@ static ssize_t nubia_hw_rf_band_show(struct kobject *kobj,
 static struct kobj_attribute hw_rf_band_attr=
 	__ATTR(rf_version, 0664, nubia_hw_rf_band_show, NULL);
 
-//读取射频频段完成
-
-//开始读取第三大部分-软件相关的一些配置
 #ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
 const struct hw_config_gpio_map_st* nubia_get_config_table_item_by_gpio(const struct hw_config_gpio_map_st *pts,
 		uint32_t tablesize)
@@ -409,7 +398,6 @@ const struct hw_config_adc_map_st* nubia_get_config_table_item_by_adc(const stru
 
 }
 #endif
-//读取wifi 类型
 const char* nubia_get_hw_wifi(void)
 {
 #ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
@@ -433,8 +421,6 @@ const char* nubia_get_hw_wifi(void)
 }
 EXPORT_SYMBOL_GPL(nubia_get_hw_wifi);
 
-
-//读取配置标准，如高配，低配等
 void nubia_get_config_standard(char* result)
 {
 #ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
@@ -473,8 +459,6 @@ static ssize_t nubia_config_standard_show(struct kobject *kobj,
 static struct kobj_attribute config_standard_attr=
 	__ATTR(config_version, 0664, nubia_config_standard_show, NULL);
 
-
-//调试值的读取和写入
 static ssize_t debug_value_store(struct kobject *kobj,
 	    struct kobj_attribute *attr, const char *buf, size_t count)
 {
