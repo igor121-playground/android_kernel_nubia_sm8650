@@ -33,13 +33,6 @@ config NUBIA_HW_GPIO_BY_PM
 	help
 		NUBIA HW GPIO BY PM
 
-config NUBIA_HW_CPU_SERIAL_NUM
-	bool "NUBIA HW CPU SERIAL NUM"
-	depends on NUBIA_HW_VERSION
-	default n
-	help
-	  NUBIA HW CPU SERIAL NUM
-
 config NUBIA_PRODUCT_NX709J
         tristate "NUBIA PRODUCT BUILD"
         depends on NUBIA_HW_VERSION
