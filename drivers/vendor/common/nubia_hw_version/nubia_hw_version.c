@@ -540,64 +540,6 @@ static ssize_t debug_value_show(struct kobject *kobj,
 static struct kobj_attribute debug_value_attr=
 	__ATTR(debug_value, 0664, debug_value_show, debug_value_store);
 
-
-#ifdef CONFIG_NUBIA_HW_CPU_SERIAL_NUM
-static uint32_t g_cpu_serial_num;
-
-static void nubia_cpu_serial_num_init(void)
-{
-	/*Check the spec to get cpu serial number address on the plateform you use */
-	//MSM8952  0x00058008
-	//MSM8976  0x000A60A8
-	//MSM8953  0x000A4128
-	//MSM8998  0x00784138
-#define QFPROM_CPU_SERIAL_NUM_LSB  0x00786134
-#define QFPROM_CPU_SERIAL_NUM_MSB  0
-
-	void __iomem *serial_num_addr;
-
-	if(!request_mem_region(QFPROM_CPU_SERIAL_NUM_LSB, 4, "cpu_serial_num")){
-		printk(KERN_ERR "nubia could not request_mem_region\n");
-		g_cpu_serial_num = 0;
-		return;
-	}
-
-	serial_num_addr = ioremap(QFPROM_CPU_SERIAL_NUM_LSB, 4);
-	if(!serial_num_addr){
-		printk(KERN_ERR
-		       "nubia could not map QFPROM_CPU_SERIAL_NUM_LSB address\n");
-		g_cpu_serial_num = 0;
-	} else {
-		g_cpu_serial_num = readl_relaxed(serial_num_addr);
-		printk(KERN_ERR "nubia cpu_serial_num=0x%08X\n",
-		       g_cpu_serial_num);
-		iounmap(serial_num_addr);
-	}
-	return;
-}
-
-static uint32_t nubia_get_cpu_serial_num(void)
-{
-	if (g_cpu_serial_num == 0)
-		nubia_cpu_serial_num_init();
-	return g_cpu_serial_num;
-}
-
-static ssize_t nubia_cpu_serial_num_show(struct kobject *kobj,
-					 struct kobj_attribute *attr, char *buf)
-{
-	uint32_t chip_num = nubia_get_cpu_serial_num();
-	return snprintf(buf, sizeof(uint32_t) + 3, "0x%08X", chip_num);
-}
-
-static struct kobj_attribute cpu_serial_num_attr =
-	__ATTR(chip_serial, 0664, nubia_cpu_serial_num_show, NULL);
-
-static struct kobj_attribute cpu_serial_num_attr2 =
-	__ATTR(cpu_serial_num, 0664, nubia_cpu_serial_num_show, NULL);
-
-#endif
-
 static ssize_t nubia_wifi_config_type_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
@@ -643,10 +585,6 @@ static struct attribute *nubia_hw_version_attrs[] = {
 	&pcb_version_attr.attr,
 	&hw_rf_band_attr.attr,
 	&config_standard_attr.attr,
-#ifdef CONFIG_NUBIA_HW_CPU_SERIAL_NUM
-	&cpu_serial_num_attr.attr,
-	&cpu_serial_num_attr2.attr,
-#endif
 	&wifi_config_type_attr.attr,
 	&nfc_confi_attr.attr,
 	&charge_version_attr.attr,
@@ -1112,9 +1050,6 @@ int __init nubia_hw_version_init(void)
 
 	nubia_hw_version_debug("nubia_hw_version creat attributes end \n");
 
-#ifdef CONFIG_NUBIA_HW_CPU_SERIAL_NUM
-	nubia_cpu_serial_num_init();
-#endif
 	return rc;
 }
 
