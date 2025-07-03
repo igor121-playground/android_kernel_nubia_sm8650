@@ -31,9 +31,6 @@
 #else
 #include <linux/qpnp/qpnp-adc.h>
 #endif
-#ifdef CONFIG_NUBIA_HW_GPIO_BY_PM
-#include <linux/qpnp/pin.h>
-#endif
 
 #ifdef CONFIG_NUBIA_HW_VERSION_DEBUG
 static int debug_value=1;
@@ -52,11 +49,6 @@ uint8_t	nubia_pcb_gpio4_v = 0;
 int pcb_gpio3 = 0;
 int pcb_gpio4 = 0;
 
-#endif
-#ifdef CONFIG_NUBIA_HW_GPIO_BY_PM
-uint8_t	nubia_pm_gpio1_v = 0;
-uint8_t	nubia_pm_gpio2_v = 0;
-#define NUBIA_PM_GPIO_PULLDOWN_10 4
 #endif
 uint8_t	nubia_rf_gpio1_v = 0;
 uint8_t	nubia_rf_gpio2_v = 0;
@@ -670,47 +662,7 @@ static int  nubia_parse_hw_ver_gpio_dt(struct device_node *node,int* pcb_gpio1_v
 	return 0;
 }
 #endif
-#ifdef CONFIG_NUBIA_HW_GPIO_BY_PM
-static int  nubia_parse_hw_ver_pm_gpio_dt(struct device_node *node,int* pm_gpio1_v, int* pm_gpio2_v)
-{
-	int pm_gpio1 = 0;
-	int pm_gpio2 = 0;
-	int rc = 0;
 
-	pm_gpio1 = of_get_named_gpio(node, "qcom,pm-gpio1", 0);
-	nubia_hw_version_debug("nubia pm gpio1=%x\n",pm_gpio1);
-
-	if (!gpio_is_valid(pm_gpio1)){
-		nubia_hw_version_debug("pm gpio1 not found\n");
-		return -EPROBE_DEFER;
-	}
-
-	rc = gpio_request(pm_gpio1, "NUBIA_HW_PM_GPIO1");
-	if (rc < 0){
-		printk("Failed to request PM GPIO1:%d, ERRNO:%d\n", (s32)pm_gpio1, rc);
-		rc = -ENODEV;
-	}
-
-	*pm_gpio1_v = pm_gpio1;
-	pm_gpio2 = of_get_named_gpio(node, "qcom,pm-gpio2", 0);
-	nubia_hw_version_debug("nubia pm gpio2=%x\n",pm_gpio2);
-
-	if (!gpio_is_valid(pm_gpio2)){
-		nubia_hw_version_debug("pm gpio2 not found\n");
-		//return -EPROBE_DEFER;
-		return 0;
-	}
-
-	rc = gpio_request(pm_gpio2, "NUBIA_HW_PM_GPIO2");
-	if (rc < 0){
-		printk("Failed to request PM GPIO2:%d, ERRNO:%d\n", (s32)pm_gpio2, rc);
-		rc = -ENODEV;
-	}
-
-	*pm_gpio2_v = pm_gpio2;
-	return 0;
-}
-#endif
 static int  nubia_parse_hw_ver_rf_gpio_dt(struct device_node *node,int* rf_gpio1_v, int* rf_gpio2_v)
 {
 	int rf_gpio1 = 0;
@@ -852,10 +804,6 @@ static int  nubia_hw_ver_probe(struct platform_device *pdev)
 	int pcb_gpio1 = 0;
 	int pcb_gpio2 = 0;
 #endif
-#ifdef CONFIG_NUBIA_HW_GPIO_BY_PM
-	int pm_gpio1 = 0;
-	int pm_gpio2 = 0;
-#endif
 	int rf_gpio1 = 0;
 	int rf_gpio2 = 0;
 #ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
@@ -911,11 +859,6 @@ static int  nubia_hw_ver_probe(struct platform_device *pdev)
 		return rc;
 	}
 #endif
-#ifdef CONFIG_NUBIA_HW_GPIO_BY_PM
-	rc = nubia_parse_hw_ver_pm_gpio_dt(node,&pm_gpio1,&pm_gpio2);
-	if (rc < 0)
-		return rc;
-#endif
 	rc = nubia_parse_hw_ver_rf_gpio_dt(node,&rf_gpio1,&rf_gpio2);
 	if (rc < 0)
 		return rc;
@@ -945,11 +888,6 @@ static int  nubia_hw_ver_probe(struct platform_device *pdev)
 	nubia_pcb_gpio4_v = nubia_get_gpio_status(pcb_gpio4);
 #endif
 //if use pm gpio
-#ifdef CONFIG_NUBIA_HW_GPIO_BY_PM
-	nubia_pm_gpio1_v = nubia_get_gpio_status(pm_gpio1);
-	if (0 != pm_gpio2)
-		nubia_pm_gpio2_v = nubia_get_gpio_status(pm_gpio2);
-#endif
 	nubia_rf_gpio1_v = nubia_get_gpio_status(rf_gpio1);
 	nubia_rf_gpio2_v = nubia_get_gpio_status(rf_gpio2);
 #ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
@@ -977,22 +915,6 @@ static int  nubia_hw_ver_probe(struct platform_device *pdev)
 			printk(KERN_ERR"pcb version: unknown");
 
 	}
-#endif
-#ifdef CONFIG_NUBIA_HW_GPIO_BY_PM
-	rc = nubia_qpnp_pin_config(pm_gpio1,NUBIA_PM_GPIO_PULLDOWN_10);
-	if (rc)
-		return -ENODEV;
-
-	nubia_pm_gpio1_v += gpio_get_value(pm_gpio1);
-
-	if (0 != pm_gpio2){
-		rc = nubia_qpnp_pin_config(pm_gpio2,NUBIA_PM_GPIO_PULLDOWN_10);
-		if (rc)
-			return -ENODEV;
-
-		nubia_pm_gpio2_v += gpio_get_value(pm_gpio2);
-	}
-	nubia_hw_version_debug("nubia_pm_gpio1_v=%x,pm_gpio2=%x\n",nubia_pm_gpio1_v,nubia_pm_gpio2_v);
 #endif
 	nubia_rf_gpio1_v += nubia_get_gpio_status(rf_gpio1);
 	nubia_rf_gpio2_v += nubia_get_gpio_status(rf_gpio2);
