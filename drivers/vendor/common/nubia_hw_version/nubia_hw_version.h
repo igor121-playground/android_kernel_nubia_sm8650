@@ -39,21 +39,12 @@ enum nubia_gpio_status {
  NUBIA_GPIO_UNKNOWN,
 };
 
-#ifdef CONFIG_NUBIA_HW_VER_BY_ADC
-struct hw_pcb_adc_map_str{
-	int low_mv;
-	int high_mv;
-	hw_pcb_type pcb_type;
-	char pcb_ver[PCB_VER_LENGTH];
-};
-#else
 struct hw_pcb_gpio_map_str{
 	int gpio_A;
 	int gpio_B;
 	hw_pcb_type pcb_type;
 	char pcb_ver[PCB_VER_LENGTH];
 };
-#endif
 
 struct hw_rf_band_gpio_map_str{
 	int gpio_A;
@@ -77,17 +68,6 @@ struct hw_config_adc_map_st{
 };
 #endif
 
-//noraml is by gpio to read pcb
-#ifdef CONFIG_NUBIA_HW_VER_BY_ADC
-static const struct hw_pcb_adc_map_str hw_pcb_adc_map[] = {
-	{0,     80,	    HW_A,  "MB_A"},
-	{80,    220,	HW_B,  "MB_B"},
-	{220,   380,    HW_C,  "MB_C"},
-	{390,   510,    HW_D,  "MB_D"},
-	{520,   650,    HW_E,  "MB_E"},
-	{660,   770,    HW_F,  "MB_F"},
-};
-#else
 /*HW_PCB_VESION 1.1*/
 static const struct hw_pcb_gpio_map_str hw_pcb_gpio_map[] = {
 	{NUBIA_GPIO_PULL_DOWN, NUBIA_GPIO_PULL_DOWN,	HW_A,  "MB_A"},
@@ -100,7 +80,6 @@ static const struct hw_pcb_gpio_map_str hw_pcb_gpio_map[] = {
 	{NUBIA_GPIO_PULL_DOWN, NUBIA_GPIO_FLOAT,        HW_C1, "MB_C1"},
 	{NUBIA_GPIO_FLOAT,     NUBIA_GPIO_FLOAT,		HW_E,  "MB_E"},
 };
-#endif
 
 //read rf band
 static const struct hw_rf_band_gpio_map_str hw_rf_band_gpio_map[] = {
