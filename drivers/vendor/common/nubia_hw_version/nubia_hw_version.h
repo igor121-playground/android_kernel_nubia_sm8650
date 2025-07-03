@@ -52,21 +52,12 @@ struct hw_rf_band_gpio_map_str{
 	char rf_band[RF_BAND_LENGTH];
 };
 
-#ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
 struct hw_config_gpio_map_st{
 	int gpio_A;
 	int gpio_B;
 	char wifi_type[WIFI_STRING_LENGTH];
 	char config_type[CONFIG_STRING_LENGTH];
 };
-#else
-struct hw_config_adc_map_st{
-	int low_mv;
-	int high_mv;
-	char wifi_type[WIFI_STRING_LENGTH];
-	char config_type[CONFIG_STRING_LENGTH];
-};
-#endif
 
 /*HW_PCB_VESION 1.1*/
 static const struct hw_pcb_gpio_map_str hw_pcb_gpio_map[] = {
@@ -92,19 +83,10 @@ static const struct hw_rf_band_gpio_map_str hw_rf_band_gpio_map[] = {
 };
 
 //read config issue
-#ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
 static const struct hw_config_gpio_map_st hw_config_gpio_map[] = {
 	{NUBIA_GPIO_PULL_DOWN, NUBIA_GPIO_PULL_DOWN,    "wifi_sky", "config"},
 	{NUBIA_GPIO_FLOAT, NUBIA_GPIO_FLOAT,    "wifi_murata", "config"},
 	{NUBIA_GPIO_PULL_DOWN, NUBIA_GPIO_PULL_UP,	"wifi_qorvo", "config"},
 
 };
-#else
-static const struct hw_config_adc_map_st hw_config_adc_map[] = {
-	{0,   80,  "wifi_samsung",   "config"},
-	{81, 220,  "wifi_samsung",    "config"},
-	{221,380,  "wifi_samsung",    "config"},
-	{390,510,  "wifi_qorvo",      "config"}
-};
-#endif
 #endif

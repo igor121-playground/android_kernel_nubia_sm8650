@@ -27,10 +27,6 @@
 #include <linux/of_gpio.h>
 #include <linux/input.h>
 #include <linux/pinctrl/consumer.h>
-#ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
-#else
-#include <linux/qpnp/qpnp-adc.h>
-#endif
 
 #ifdef CONFIG_NUBIA_HW_VERSION_DEBUG
 static int debug_value=1;
@@ -48,17 +44,8 @@ int pcb_gpio4 = 0;
 
 uint8_t	nubia_rf_gpio1_v = 0;
 uint8_t	nubia_rf_gpio2_v = 0;
-#ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
 uint8_t	nubia_config_gpio1_v = 0;
 uint8_t	nubia_config_gpio2_v = 0;
-#else
-int nubia_hw_config_mv = 0;
-static struct {
-	struct platform_device *pdev;
-	struct qpnp_vadc_chip *vadc_dev;
-} *penv = NULL;
-
-#endif
 
 
 static uint8_t nubia_get_gpio_status(uint32_t gpio)
@@ -351,7 +338,6 @@ static ssize_t nubia_hw_rf_band_show(struct kobject *kobj,
 static struct kobj_attribute hw_rf_band_attr=
 	__ATTR(rf_version, 0664, nubia_hw_rf_band_show, NULL);
 
-#ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
 const struct hw_config_gpio_map_st* nubia_get_config_table_item_by_gpio(const struct hw_config_gpio_map_st *pts,
 		uint32_t tablesize)
 {
@@ -375,42 +361,11 @@ const struct hw_config_gpio_map_st* nubia_get_config_table_item_by_gpio(const st
 		return NULL;
 
 }
-#else
-const struct hw_config_adc_map_st* nubia_get_config_table_item_by_adc(const struct hw_config_adc_map_st *pts,
-	   uint32_t tablesize, int input)
-{
-	uint32_t i = 0;
-
-	if(NULL == pts)
-		return NULL;
-
-	while(i < tablesize){
-		if ((pts[i].low_mv <= input) && (input <= pts[i].high_mv))
-			break;
-		else
-			i++;
-	}
-
-	if(i < tablesize)
-		return &pts[i];
-	else
-		return NULL;
-
-}
-#endif
 const char* nubia_get_hw_wifi(void)
 {
-#ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
 	const struct hw_config_gpio_map_st *pts_item;
 	pts_item = nubia_get_config_table_item_by_gpio(hw_config_gpio_map,
                         ARRAY_SIZE(hw_config_gpio_map));
-#else
-	const struct hw_config_adc_map_st *pts_item;
-
-	pts_item = nubia_get_config_table_item_by_adc(hw_config_adc_map,
-						ARRAY_SIZE(hw_config_adc_map),
-						nubia_hw_config_mv);
-#endif
 
 	if(NULL != pts_item){
 		nubia_hw_version_debug("wifi_type=%s\n", pts_item->wifi_type);
@@ -423,16 +378,9 @@ EXPORT_SYMBOL_GPL(nubia_get_hw_wifi);
 
 void nubia_get_config_standard(char* result)
 {
-#ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
 	const struct hw_config_gpio_map_st *pts_item;
 	pts_item = nubia_get_config_table_item_by_gpio(hw_config_gpio_map,
 							ARRAY_SIZE(hw_config_gpio_map));
-#else
-	const struct hw_config_adc_map_st *pts_item;
-	pts_item = nubia_get_config_table_item_by_adc(hw_config_adc_map,
-							ARRAY_SIZE(hw_config_adc_map),
-							nubia_hw_config_mv);
-#endif
 	if(!result)
 		return;
 
@@ -637,7 +585,6 @@ static int  nubia_parse_hw_ver_rf_gpio_dt(struct device_node *node,int* rf_gpio1
 	*rf_gpio2_v = rf_gpio2;
 	return 0;
 }
-#ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
 static int  nubia_parse_hw_ver_config_gpio_dt(struct device_node *node,int* config_gpio1_v, int* config_gpio2_v)
 {
 	int config_gpio1 = 0;
@@ -674,91 +621,23 @@ static int  nubia_parse_hw_ver_config_gpio_dt(struct device_node *node,int* conf
 	*config_gpio2_v = config_gpio2;
 	return 0;
 }
-#endif
 
-#ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
-#else
-static int  nubia_parse_hw_ver_config_adc_dt(struct device_node *node,int* config_pm_adc_channel_v)
-{
-	int pm_adc_channel = 0;
-	int rc = 0;
-
-	rc = of_property_read_u32(node, "qcom,config-pm-adc_channel", &pm_adc_channel);
-	nubia_hw_version_debug("nubia pm channel1=%x\n",pm_adc_channel);
-
-	if (rc){
-		nubia_hw_version_debug("invalid nubia config channel1=%x\n",pm_adc_channel);
-		return -EPROBE_DEFER;
-	}
-
-	*config_pm_adc_channel_v =pm_adc_channel;
-	return 0;
-}
-#endif
-#if !defined(CONFIG_NUBIA_HW_CONFIG_BY_GPIO)
-static int	nubia_parse_hw_ver_read_adc(int pm_adc_channel_v,int *result)
-{
-	struct qpnp_vadc_result adc_result;
-	int rc = 0;
-
-	if (penv->vadc_dev != NULL){
-		rc = qpnp_vadc_read(penv->vadc_dev, pm_adc_channel_v, &adc_result);
-		if (rc){
-			pr_err("VADC read error with %d\n", rc);
-			return -EPROBE_DEFER;
-		}
-
-		nubia_hw_version_debug("nubia_adc_phy=%d\n",(int)adc_result.physical/1000);
-	}else{
-		nubia_hw_version_debug("not setting up nubia hw vadc\n");
-		return -EPROBE_DEFER;
-	}
-
-	*result = (int)adc_result.physical/1000;
-	return 0;
-}
-#endif
 static int  nubia_hw_ver_probe(struct platform_device *pdev)
 {
 	int pcb_gpio1 = 0;
 	int pcb_gpio2 = 0;
 	int rf_gpio1 = 0;
 	int rf_gpio2 = 0;
-#ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
 	int config_gpio1 = 0;
 	int config_gpio2 = 0;
-#else
-	int config_adc_channel = 0;
-#endif
 	int rc = 0;
 	struct device_node *node = pdev->dev.of_node;
-#if !defined(CONFIG_NUBIA_HW_CONFIG_BY_GPIO)
-	int adc_result;
-#endif
 
 	nubia_hw_version_debug("nubia_hw_ver_probe\n");
 	if (!pdev){
 		printk(KERN_ERR"pdev is null\n");
 		return -EPROBE_DEFER;
 	}
-
-#if !defined(CONFIG_NUBIA_HW_CONFIG_BY_GPIO)
-	penv = devm_kzalloc(&pdev->dev, sizeof(*penv), GFP_KERNEL);
-	if (!penv) {
-		dev_err(&pdev->dev, "cannot allocate device memory.\n");
-		return -ENOMEM;
-	}
-
-	penv->pdev = pdev;
-	if (!&penv->pdev->dev){
-		printk("pdev dev is null\n");
-		return -EPROBE_DEFER;
-	}
-
-	penv->vadc_dev = qpnp_get_vadc(&penv->pdev->dev, "nubia_hw");
-	if (IS_ERR(penv->vadc_dev))
-		return -EPROBE_DEFER;
-#endif
 
 	rc = nubia_parse_hw_ver_gpio_dt(node,&pcb_gpio1,&pcb_gpio2);
 	if (rc < 0){
@@ -768,21 +647,9 @@ static int  nubia_hw_ver_probe(struct platform_device *pdev)
 	rc = nubia_parse_hw_ver_rf_gpio_dt(node,&rf_gpio1,&rf_gpio2);
 	if (rc < 0)
 		return rc;
-#ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
 	rc = nubia_parse_hw_ver_config_gpio_dt(node,&config_gpio1,&config_gpio2);
 	if (rc < 0)
 		return rc;
-#else
-	rc = nubia_parse_hw_ver_config_adc_dt(node,&config_adc_channel);
-	if (rc < 0)
-		return rc;
-
-	rc = nubia_parse_hw_ver_read_adc(config_adc_channel,&adc_result);
-	if (rc < 0)
-		return rc;
-
-	nubia_hw_config_mv = adc_result;
-#endif
 	if (nubia_gpio_ctrl(pdev))
 		return -ENODEV;
 	nubia_pcb_gpio1_v = nubia_get_gpio_status(pcb_gpio1);
@@ -793,11 +660,8 @@ static int  nubia_hw_ver_probe(struct platform_device *pdev)
 //if use pm gpio
 	nubia_rf_gpio1_v = nubia_get_gpio_status(rf_gpio1);
 	nubia_rf_gpio2_v = nubia_get_gpio_status(rf_gpio2);
-#ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
 	nubia_config_gpio1_v = nubia_get_gpio_status(config_gpio1);
 	nubia_config_gpio2_v = nubia_get_gpio_status(config_gpio2);
-#else
-#endif
 	msleep(20);
 	if (nubia_gpio_ctrl1(pdev))
 		return -ENODEV;
@@ -819,12 +683,9 @@ static int  nubia_hw_ver_probe(struct platform_device *pdev)
 	nubia_rf_gpio1_v += nubia_get_gpio_status(rf_gpio1);
 	nubia_rf_gpio2_v += nubia_get_gpio_status(rf_gpio2);
 	nubia_hw_version_debug("nubia_rf_gpio1_v=%x,nubia_rf_gpio2_v=%x\n",nubia_rf_gpio1_v,nubia_rf_gpio2_v);
-#ifdef CONFIG_NUBIA_HW_CONFIG_BY_GPIO
 	nubia_config_gpio1_v += nubia_get_gpio_status(config_gpio1);
 	nubia_config_gpio2_v += nubia_get_gpio_status(config_gpio2);
 	nubia_hw_version_debug("nubia_config_gpio1_v=%x,nubia_config_gpio2_v=%x\n",nubia_config_gpio1_v,nubia_config_gpio2_v);
-#else
-#endif
 	return 0;
 }
 
