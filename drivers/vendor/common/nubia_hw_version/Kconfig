@@ -18,10 +18,3 @@ config NUBIA_HW_CONFIG_BY_GPIO
 	default n
 	help
 		NUBIA HW CONFIG BY GPIO
-
-config NUBIA_PRODUCT_NX709J
-        tristate "NUBIA PRODUCT BUILD"
-        depends on NUBIA_HW_VERSION
-        default n
-        help
-          NUBIA PRODUCT BUILD
