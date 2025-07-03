@@ -28,12 +28,7 @@
 #include <linux/input.h>
 #include <linux/pinctrl/consumer.h>
 
-#ifdef CONFIG_NUBIA_HW_VERSION_DEBUG
-static int debug_value=1;
-#else
-static int debug_value=0;
-#endif
-#define nubia_hw_version_debug(fmt, args...) do {if(debug_value==1)printk(KERN_INFO "[nubia_hw_version]"fmt, ##args);} while(0)
+#define nubia_hw_version_debug(fmt, args...) printk(KERN_INFO "[nubia_hw_version]"fmt, ##args);
 
 uint8_t	nubia_pcb_gpio1_v = 0;
 uint8_t	nubia_pcb_gpio2_v = 0;
@@ -407,22 +402,6 @@ static ssize_t nubia_config_standard_show(struct kobject *kobj,
 static struct kobj_attribute config_standard_attr=
 	__ATTR(config_version, 0664, nubia_config_standard_show, NULL);
 
-static ssize_t debug_value_store(struct kobject *kobj,
-	    struct kobj_attribute *attr, const char *buf, size_t count)
-{
-	sscanf(buf, "%d", &debug_value);
-	return count;
-}
-
-static ssize_t debug_value_show(struct kobject *kobj,
-	   struct kobj_attribute *attr, char *buf)
-{
-	return snprintf(buf, sizeof(int) + 1, "%d", debug_value);
-}
-
-static struct kobj_attribute debug_value_attr=
-	__ATTR(debug_value, 0664, debug_value_show, debug_value_store);
-
 static ssize_t nubia_wifi_config_type_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
@@ -464,7 +443,6 @@ static struct kobj_attribute nfc_confi_attr =
 
 
 static struct attribute *nubia_hw_version_attrs[] = {
-	&debug_value_attr.attr,
 	&pcb_version_attr.attr,
 	&hw_rf_band_attr.attr,
 	&config_standard_attr.attr,
