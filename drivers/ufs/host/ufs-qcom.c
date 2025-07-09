@@ -1683,7 +1683,8 @@ static void ufs_qcom_toggle_pri_affinity(struct ufs_hba *hba, bool on)
 #endif
 
 	atomic_set(&host->hi_pri_en, on);
-	ufs_qcom_set_affinity_hint(hba, on);
+	if (!IS_ENABLED(CONFIG_IRQ_SBALANCE))
+		ufs_qcom_set_affinity_hint(hba, on);
 }
 
 static void ufs_qcom_cpufreq_dwork(struct work_struct *work)
@@ -5580,11 +5581,12 @@ static ssize_t irq_affinity_support_store(struct device *dev,
 
 	host->irq_affinity_support = !!value;
 	/* Reset cpu affinity accordingly */
-	if (host->irq_affinity_support)
-		ufs_qcom_set_affinity_hint(hba, true);
-	else
-		ufs_qcom_set_affinity_hint(hba, false);
-
+	if (!IS_ENABLED(CONFIG_IRQ_SBALANCE)) {
+		if (host->irq_affinity_support)
+			ufs_qcom_set_affinity_hint(hba, true);
+		else
+			ufs_qcom_set_affinity_hint(hba, false);
+	}
 	return count;
 
 out:
