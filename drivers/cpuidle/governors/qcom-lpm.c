@@ -27,6 +27,8 @@
 #include <trace/events/ipi.h>
 #include <trace/events/power.h>
 #include <trace/hooks/cpuidle.h>
+#include <linux/kernel.h>
+#include <linux/cpufreq.h>
 
 #include "qcom-lpm.h"
 #define CREATE_TRACE_POINTS
@@ -52,6 +54,36 @@ bool sleep_disabled = true;
 static bool suspend_in_progress;
 static bool traces_registered;
 static struct cluster_governor *cluster_gov_ops;
+
+#ifdef CONFIG_KPROFILES
+extern int kp_active_mode(void);
+void example_function(void)
+{
+    // Based on the active profile mode, tune kernel features or settings
+    switch (kp_active_mode()) {
+        case 1:
+            sleep_disabled = false;
+            prediction_disabled = false;
+            // Things to be done when battery profile is active
+            break;
+        case 2:
+            sleep_disabled = true;
+            prediction_disabled = true;
+            // Things to be done when balance profile is active
+            break;
+        case 3:
+            sleep_disabled = true;
+            prediction_disabled = true;
+            // Things to be done when performance profile is active
+            break;
+        default:
+            sleep_disabled = true;
+            prediction_disabled = true;
+            // Things to be done when kprofiles is disabled or default profile is active
+            break;
+    }
+}
+#endif
 
 DEFINE_PER_CPU(struct lpm_cpu, lpm_cpu_data);
 
