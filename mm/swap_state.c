@@ -80,6 +80,7 @@ void *get_shadow_from_swap_cache(swp_entry_t entry)
 		return page;
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(get_shadow_from_swap_cache);
 
 /*
  * add_to_swap_cache resembles filemap_add_folio on swapper_space,
@@ -526,6 +527,8 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 
 	return retpage;
 }
+
+EXPORT_SYMBOL_GPL(read_swap_cache_async);
 
 static unsigned int __swapin_nr_pages(unsigned long prev_offset,
 				      unsigned long offset,

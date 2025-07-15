@@ -286,6 +286,7 @@ struct perf_event;
 #define PERF_PMU_CAP_NO_EXCLUDE			0x0080
 #define PERF_PMU_CAP_AUX_OUTPUT			0x0100
 #define PERF_PMU_CAP_EXTENDED_HW_TYPE		0x0200
+#define PERF_PMU_CAP_AUX_PREFER_LARGE		0x0400
 
 struct perf_output_handle;
 
@@ -1719,9 +1720,9 @@ int perf_event_exit_cpu(unsigned int cpu);
 #define perf_event_exit_cpu	NULL
 #endif
 
-extern void __weak arch_perf_update_userpage(struct perf_event *event,
-					     struct perf_event_mmap_page *userpg,
-					     u64 now);
+extern void arch_perf_update_userpage(struct perf_event *event,
+				      struct perf_event_mmap_page *userpg,
+				      u64 now);
 
 #ifdef CONFIG_MMU
 extern __weak u64 arch_perf_get_page_size(struct mm_struct *mm, unsigned long addr);

@@ -328,9 +328,11 @@
   __traceiter_android_rvh_migrate_queued_task
   __traceiter_android_rvh_new_task_stats
   __traceiter_android_rvh_panic_unhandled
+  __traceiter_android_rvh_percpu_rwsem_wait_complete
   __traceiter_android_rvh_pick_next_entity
   __traceiter_android_rvh_place_entity
   __traceiter_android_rvh_prepare_prio_fork
+  __traceiter_android_rvh_pr_set_vma_name_bypass
   __traceiter_android_rvh_replace_next_task_fair
   __traceiter_android_rvh_report_bug
   __traceiter_android_rvh_rtmutex_prepare_setprio
@@ -368,6 +370,19 @@
   __traceiter_android_rvh_update_thermal_stats
   __traceiter_android_rvh_util_est_update
   __traceiter_android_rvh_wake_up_new_task
+  __traceiter_android_rvh_tcp_sendmsg
+  __traceiter_android_rvh_tcp_recvmsg
+  __traceiter_android_rvh_udp_sendmsg
+  __traceiter_android_rvh_udp_recvmsg
+  __traceiter_android_rvh_udpv6_sendmsg
+  __traceiter_android_rvh_udpv6_recvmsg
+  __traceiter_android_rvh_tcp_select_window
+  __traceiter_android_rvh_tcp_rcv_spurious_retrans
+  __traceiter_android_rvh_inet_sock_create
+  __traceiter_android_rvh_inet_sock_release
+  __traceiter_android_vh_tcp_rtt_estimator
+  __traceiter_android_vh_udp_enqueue_schedule_skb
+  __traceiter_android_vh_build_skb_around
   __traceiter_android_vh_audio_usb_offload_connect
   __traceiter_android_vh_binder_restore_priority
   __traceiter_android_vh_binder_set_priority
@@ -377,6 +392,8 @@
   __traceiter_android_vh_build_sched_domains
   __traceiter_android_vh_check_uninterrupt_tasks
   __traceiter_android_vh_check_uninterrupt_tasks_done
+  __traceiter_android_vh_clear_rwsem_reader_owned
+  __traceiter_android_vh_clear_rwsem_writer_owned
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_cpufreq_fast_switch
@@ -385,7 +402,10 @@
   __traceiter_android_vh_cpuidle_psci_enter
   __traceiter_android_vh_cpuidle_psci_exit
   __traceiter_android_vh_disable_thermal_cooling_stats
+  __traceiter_android_vh_do_anonymous_page
+  __traceiter_android_vh_do_swap_page
   __traceiter_android_vh_do_wake_up_sync
+  __traceiter_android_vh_do_wp_page
   __traceiter_android_vh_dump_throttled_rt_tasks
   __traceiter_android_vh_free_task
   __traceiter_android_vh_ftrace_dump_buffer
@@ -393,14 +413,23 @@
   __traceiter_android_vh_ftrace_oops_enter
   __traceiter_android_vh_ftrace_oops_exit
   __traceiter_android_vh_ftrace_size_check
+  __traceiter_android_vh_fuse_request_end
   __traceiter_android_vh_ignore_dmabuf_vmap_bounds
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_is_fpsimd_save
   __traceiter_android_vh_jiffies_update
+  __traceiter_android_vh_mempool_alloc_skip_wait
   __traceiter_android_vh_mmap_region
   __traceiter_android_vh_mutex_wait_finish
   __traceiter_android_vh_mutex_wait_start
+  __traceiter_android_vh_oom_swapmem_gather_finish
+  __traceiter_android_vh_oom_swapmem_gather_init
+  __traceiter_android_vh_percpu_rwsem_down_read
+  __traceiter_android_vh_percpu_rwsem_up_write
   __traceiter_android_vh_printk_hotplug
+  __traceiter_android_vh_queue_request_and_unlock
+  __traceiter_android_vh_record_rwsem_reader_owned
+  __traceiter_android_vh_record_rwsem_writer_owned
   __traceiter_android_vh_rproc_recovery
   __traceiter_android_vh_rproc_recovery_set
   __traceiter_android_vh_rtmutex_wait_finish
@@ -412,8 +441,12 @@
   __traceiter_android_vh_sched_show_task
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_setscheduler_uclamp
+  __traceiter_android_vh_shmem_swapin_folio
   __traceiter_android_vh_show_resume_epoch_val
   __traceiter_android_vh_show_suspend_epoch_val
+  __traceiter_android_vh_swapmem_gather_add_bypass
+  __traceiter_android_vh_swapmem_gather_finish
+  __traceiter_android_vh_swapmem_gather_init
   __traceiter_android_vh_sysrq_crash
   __traceiter_android_vh_timer_calc_index
   __traceiter_android_vh_try_to_freeze_todo
@@ -431,6 +464,7 @@
   __traceiter_android_vh_ufs_update_sdev
   __traceiter_android_vh_ufs_update_sysfs
   __traceiter_android_vh_update_topology_flags_workfn
+  __traceiter_android_vh_uprobes_replace_page
   __traceiter_android_vh_watchdog_timer_softlockup
   __traceiter_binder_transaction_received
   __traceiter_block_rq_insert
@@ -454,6 +488,8 @@
   __traceiter_sched_overutilized_tp
   __traceiter_sched_switch
   __traceiter_suspend_resume
+  __traceiter_sys_exit
+  __traceiter_tcp_retransmit_skb
   __traceiter_workqueue_execute_start
   __traceiter_xdp_exception
   __tracepoint_android_rvh_account_irq
@@ -497,10 +533,14 @@
   __tracepoint_android_rvh_is_cpu_allowed
   __tracepoint_android_rvh_migrate_queued_task
   __tracepoint_android_rvh_new_task_stats
+  __tracepoint_android_vh_oom_swapmem_gather_finish
+  __tracepoint_android_vh_oom_swapmem_gather_init
   __tracepoint_android_rvh_panic_unhandled
+  __tracepoint_android_rvh_percpu_rwsem_wait_complete
   __tracepoint_android_rvh_pick_next_entity
   __tracepoint_android_rvh_place_entity
   __tracepoint_android_rvh_prepare_prio_fork
+  __tracepoint_android_rvh_pr_set_vma_name_bypass
   __tracepoint_android_rvh_replace_next_task_fair
   __tracepoint_android_rvh_report_bug
   __tracepoint_android_rvh_rtmutex_prepare_setprio
@@ -528,6 +568,9 @@
   __tracepoint_android_rvh_setscheduler
   __tracepoint_android_rvh_shmem_get_folio
   __tracepoint_android_rvh_show_max_freq
+  __tracepoint_android_vh_swapmem_gather_add_bypass
+  __tracepoint_android_vh_swapmem_gather_finish
+  __tracepoint_android_vh_swapmem_gather_init
   __tracepoint_android_rvh_tick_entry
   __tracepoint_android_rvh_try_to_wake_up
   __tracepoint_android_rvh_try_to_wake_up_success
@@ -538,6 +581,19 @@
   __tracepoint_android_rvh_update_thermal_stats
   __tracepoint_android_rvh_util_est_update
   __tracepoint_android_rvh_wake_up_new_task
+  __tracepoint_android_rvh_tcp_sendmsg
+  __tracepoint_android_rvh_tcp_recvmsg
+  __tracepoint_android_rvh_udp_sendmsg
+  __tracepoint_android_rvh_udp_recvmsg
+  __tracepoint_android_rvh_udpv6_sendmsg
+  __tracepoint_android_rvh_udpv6_recvmsg
+  __tracepoint_android_rvh_tcp_select_window
+  __tracepoint_android_rvh_tcp_rcv_spurious_retrans
+  __tracepoint_android_rvh_inet_sock_create
+  __tracepoint_android_rvh_inet_sock_release
+  __tracepoint_android_vh_tcp_rtt_estimator
+  __tracepoint_android_vh_udp_enqueue_schedule_skb
+  __tracepoint_android_vh_build_skb_around
   __tracepoint_android_vh_audio_usb_offload_connect
   __tracepoint_android_vh_binder_restore_priority
   __tracepoint_android_vh_binder_set_priority
@@ -547,6 +603,8 @@
   __tracepoint_android_vh_build_sched_domains
   __tracepoint_android_vh_check_uninterrupt_tasks
   __tracepoint_android_vh_check_uninterrupt_tasks_done
+  __tracepoint_android_vh_clear_rwsem_reader_owned
+  __tracepoint_android_vh_clear_rwsem_writer_owned
   __tracepoint_android_vh_cpu_idle_enter
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_cpufreq_fast_switch
@@ -555,7 +613,10 @@
   __tracepoint_android_vh_cpuidle_psci_enter
   __tracepoint_android_vh_cpuidle_psci_exit
   __tracepoint_android_vh_disable_thermal_cooling_stats
+  __tracepoint_android_vh_do_anonymous_page
+  __tracepoint_android_vh_do_swap_page
   __tracepoint_android_vh_do_wake_up_sync
+  __tracepoint_android_vh_do_wp_page
   __tracepoint_android_vh_dump_throttled_rt_tasks
   __tracepoint_android_vh_free_task
   __tracepoint_android_vh_ftrace_dump_buffer
@@ -563,14 +624,21 @@
   __tracepoint_android_vh_ftrace_oops_enter
   __tracepoint_android_vh_ftrace_oops_exit
   __tracepoint_android_vh_ftrace_size_check
+  __tracepoint_android_vh_fuse_request_end
   __tracepoint_android_vh_ignore_dmabuf_vmap_bounds
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_is_fpsimd_save
   __tracepoint_android_vh_jiffies_update
+  __tracepoint_android_vh_mempool_alloc_skip_wait
   __tracepoint_android_vh_mmap_region
   __tracepoint_android_vh_mutex_wait_finish
   __tracepoint_android_vh_mutex_wait_start
+  __tracepoint_android_vh_percpu_rwsem_down_read
+  __tracepoint_android_vh_percpu_rwsem_up_write
   __tracepoint_android_vh_printk_hotplug
+  __tracepoint_android_vh_queue_request_and_unlock
+  __tracepoint_android_vh_record_rwsem_reader_owned
+  __tracepoint_android_vh_record_rwsem_writer_owned
   __tracepoint_android_vh_rproc_recovery
   __tracepoint_android_vh_rproc_recovery_set
   __tracepoint_android_vh_rtmutex_wait_finish
@@ -582,6 +650,7 @@
   __tracepoint_android_vh_sched_show_task
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_setscheduler_uclamp
+  __tracepoint_android_vh_shmem_swapin_folio
   __tracepoint_android_vh_show_resume_epoch_val
   __tracepoint_android_vh_show_suspend_epoch_val
   __tracepoint_android_vh_sysrq_crash
@@ -601,6 +670,7 @@
   __tracepoint_android_vh_ufs_update_sdev
   __tracepoint_android_vh_ufs_update_sysfs
   __tracepoint_android_vh_update_topology_flags_workfn
+  __tracepoint_android_vh_uprobes_replace_page
   __tracepoint_android_vh_watchdog_timer_softlockup
   __tracepoint_binder_transaction_received
   __tracepoint_block_rq_insert
@@ -624,6 +694,8 @@
   __tracepoint_sched_overutilized_tp
   __tracepoint_sched_switch
   __tracepoint_suspend_resume
+  __tracepoint_sys_exit
+  __tracepoint_tcp_retransmit_skb
   __tracepoint_workqueue_execute_start
   __tracepoint_xdp_exception
   __tty_alloc_driver
@@ -1175,6 +1247,7 @@
   crypto_put_default_rng
   crypto_register_aead
   crypto_register_ahash
+  crypto_register_alg
   crypto_register_rng
   crypto_register_rngs
   crypto_register_shash
@@ -1191,6 +1264,7 @@
   crypto_skcipher_setkey
   crypto_unregister_aead
   crypto_unregister_ahash
+  crypto_unregister_alg
   crypto_unregister_rng
   crypto_unregister_rngs
   crypto_unregister_shash
@@ -3020,6 +3094,7 @@
   netlink_register_notifier
   netlink_unicast
   netlink_unregister_notifier
+  next_arg
   nf_conntrack_destroy
   nf_ct_attach
   nf_ct_delete
@@ -4058,6 +4133,7 @@
   skb_dequeue_tail
   skb_ensure_writable
   skb_free_datagram
+  skb_orphan_partial
   skb_page_frag_refill
   skb_partial_csum_set
   skb_pull

@@ -1234,8 +1234,10 @@ void fpsimd_release_task(struct task_struct *dead_task)
  */
 void sme_alloc(struct task_struct *task, bool flush)
 {
-	if (task->thread.za_state && flush) {
-		memset(task->thread.za_state, 0, za_state_size(task));
+	if (task->thread.za_state) {
+		if (flush)
+			memset(task->thread.za_state, 0,
+			       za_state_size(task));
 		return;
 	}
 
@@ -1347,6 +1349,20 @@ void __init sme_setup(void)
 		get_sme_default_vl());
 }
 
+void sme_suspend_exit(void)
+{
+	u64 smcr = 0;
+
+	if (!system_supports_sme())
+		return;
+
+	if (system_supports_fa64())
+		smcr |= SMCR_ELx_FA64;
+
+	write_sysreg_s(smcr, SYS_SMCR_EL1);
+	write_sysreg_s(0, SYS_SMPRI_EL1);
+}
+
 #endif /* CONFIG_ARM64_SME */
 
 static void sve_init_regs(void)
@@ -1369,6 +1385,7 @@ static void sve_init_regs(void)
 		fpsimd_bind_task_to_cpu();
 	} else {
 		fpsimd_to_sve(current);
+		fpsimd_flush_task_state(current);
 	}
 }
 
@@ -1461,6 +1478,8 @@ void do_sme_acc(unsigned long esr, struct pt_regs *regs)
 		sme_set_vq(vq_minus_one);
 
 		fpsimd_bind_task_to_cpu();
+	} else {
+		fpsimd_flush_task_state(current);
 	}
 
 	put_cpu_fpsimd_context();
