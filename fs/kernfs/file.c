@@ -291,8 +291,8 @@ static ssize_t kernfs_fop_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	struct kernfs_open_file *of = kernfs_of(iocb->ki_filp);
 	ssize_t len = iov_iter_count(iter);
 	const struct kernfs_ops *ops;
-	char stack_buf[PATH_MAX + 1];
-	char *buf;
+	char *buf = NULL;
+	char *stack_buf = NULL;
 
 	if (of->atomic_write_len) {
 		if (len > of->atomic_write_len)
@@ -304,9 +304,16 @@ static ssize_t kernfs_fop_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	buf = of->prealloc_buf;
 	if (buf) {
 		mutex_lock(&of->prealloc_mutex);
-		if (!buf)
-			return -ENOMEM;
+		if (!buf) {
+			len = -ENOMEM;
+			goto out;
+		}
 	} else {
+		stack_buf = kmalloc(len + 1, GFP_KERNEL);
+		if (!stack_buf) {
+			len = -ENOMEM;
+			goto out;
+		}
 		buf = stack_buf;
 	}
 
@@ -314,12 +321,8 @@ static ssize_t kernfs_fop_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 		len = -EFAULT;
 		goto out_free;
 	}
-	buf[len] = '\0';	/* guarantee string termination */
+	buf[len] = '\0'; /* guarantee string termination */
 
-	/*
-	 * @of->mutex nests outside active ref and is used both to ensure that
-	 * the ops aren't called concurrently for the same open file.
-	 */
 	mutex_lock(&of->mutex);
 	if (!kernfs_get_active(of->kn)) {
 		mutex_unlock(&of->mutex);
@@ -339,7 +342,10 @@ static ssize_t kernfs_fop_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	if (len > 0)
 		iocb->ki_pos += len;
 
-out_free:
+	out_free:
+	if (stack_buf)
+		kfree(stack_buf);
+	out:
 	if (buf == of->prealloc_buf)
 		mutex_unlock(&of->prealloc_mutex);
 	return len;

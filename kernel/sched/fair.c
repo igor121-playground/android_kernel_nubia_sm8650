@@ -88,19 +88,6 @@ static unsigned int normalized_sysctl_sched_base_slice	= 700000ULL;
  */
 unsigned int sysctl_sched_child_runs_first __read_mostly;
 
-/*
- * SCHED_OTHER wake-up granularity.
- *
- * This option delays the preemption effects of decoupled workloads
- * and reduces their over-scheduling. Synchronous workloads will still
- * have immediate wakeup/sleep latencies.
- *
- * (default: 1 msec * (1 + ilog(ncpus)), units: nanoseconds)
- */
-unsigned int sysctl_sched_wakeup_granularity			= 1000000UL;
-EXPORT_SYMBOL_GPL(sysctl_sched_wakeup_granularity);
-static unsigned int normalized_sysctl_sched_wakeup_granularity	= 1000000UL;
-
 const_debug unsigned int sysctl_sched_migration_cost	= 0UL;
 
 int sched_thermal_decay_shift;
@@ -12313,7 +12300,6 @@ static void _nohz_idle_balance(struct rq *this_rq, unsigned int flags)
 	unsigned long next_balance = now + 60*HZ;
 	bool has_blocked_load = false;
 	int update_next_balance = 0;
-	int this_cpu = this_rq->cpu;
 	int balance_cpu;
 	struct rq *rq;
 
