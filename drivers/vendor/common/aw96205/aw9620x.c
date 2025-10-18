@@ -28,6 +28,7 @@
 #include <linux/string.h>
 #include <linux/jiffies.h>
 #include <linux/sched.h>
+#include <linux/proc_fs.h>
 
 #include "aw9620x.h"
 
@@ -36,6 +37,7 @@
 
 static struct mutex aw_lock;
 static struct mutex aw_update_lock;
+static struct proc_dir_entry *nubia_key_proc_dir = NULL;
 
 #define AWINIC_CODE_VERSION "V0.0.7-V1.0.4"	/* "code version"-"excel version" */
 
@@ -3353,7 +3355,7 @@ static ssize_t aw9620x_mode_operation_set(struct device *dev,
 		if (aw9620x->old_mode == AW9620X_DEEPSLEEP_MODE) {
 			aw9620x_i2c_write(aw9620x, REG_HOSTCTRL1, 1);
 		}
-		
+
 		if (aw_init_irq_flag [aw9620x->sar_num] == AW_TURE) {
 			aw_init_irq_flag [aw9620x->sar_num] = AW_FALSE;
 			aw9620x_load_def_reg_bin(aw9620x);
@@ -3427,6 +3429,31 @@ static ssize_t aw9620x_mode_operation_get(struct device *dev,
 
 	return len;
 }
+
+static ssize_t aw9620x_proc_mode_read(struct file *file, char __user *buf,
+				       size_t count, loff_t *ppos)
+{
+	struct aw9620x *aw9620x = pde_data(file_inode(file));
+	char kbuf[100];
+	ssize_t len = aw9620x_mode_operation_get(aw9620x->cdev.dev, NULL, kbuf);
+	return simple_read_from_buffer(buf, count, ppos, kbuf, len);
+}
+
+static ssize_t aw9620x_proc_mode_write(struct file *file, const char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	struct aw9620x *aw9620x = pde_data(file_inode(file));
+	char kbuf[16];
+	if (count >= sizeof(kbuf)) return -EINVAL;
+	if (copy_from_user(kbuf, buf, count)) return -EFAULT;
+	kbuf[count] = '\0';
+	return aw9620x_mode_operation_set(aw9620x->cdev.dev, NULL, kbuf, count);
+}
+
+static const struct proc_ops proc_mode_fops = {
+	.proc_read = aw9620x_proc_mode_read,
+	.proc_write = aw9620x_proc_mode_write,
+};
 
 static ssize_t aw9620x_update_fw_get(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -4223,6 +4250,20 @@ static int aw9620x_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id 
 		goto err_sysfs;
 	}
 
+	if (!nubia_key_proc_dir) {
+		nubia_key_proc_dir = proc_mkdir("nubia_key", NULL);
+	}
+
+	if (nubia_key_proc_dir) {
+		struct proc_dir_entry *sar_dir;
+		char dir_name[16];
+		snprintf(dir_name, sizeof(dir_name), "sar%d", aw9620x->sar_num);
+		sar_dir = proc_mkdir(dir_name, nubia_key_proc_dir);
+		if (sar_dir) {
+			proc_create_data("mode_operation", 0664, sar_dir, &proc_mode_fops, aw9620x);
+		}
+	}
+
 #ifdef AW_USE_IRQ_FLAG
 	//4.input、irq init
 	ret = aw9620x_input_init(aw9620x, &err_num);
@@ -4328,6 +4369,12 @@ static void aw9620x_i2c_remove(struct i2c_client *i2c)
 {
 	uint32_t i = 0;
 	struct aw9620x *aw9620x = i2c_get_clientdata(i2c);
+	char dir_name[16];
+
+	if (nubia_key_proc_dir) {
+		snprintf(dir_name, sizeof(dir_name), "sar%d", aw9620x->sar_num);
+		remove_proc_subtree(dir_name, nubia_key_proc_dir);
+	}
 
 	/*if (gpio_is_valid(aw9620x->irq_gpio))
 		devm_gpio_free(&i2c->dev, aw9620x->irq_gpio);*/
@@ -4455,6 +4502,10 @@ static int __init aw9620x_i2c_init(void)
 late_initcall(aw9620x_i2c_init);
 static void __exit aw9620x_i2c_exit(void)
 {
+	if (nubia_key_proc_dir) {
+		remove_proc_entry("nubia_key", NULL);
+		nubia_key_proc_dir = NULL;
+	}
 	i2c_del_driver(&aw9620x_i2c_driver);
 }
 module_exit(aw9620x_i2c_exit);
