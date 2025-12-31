@@ -103,7 +103,7 @@ bool cass_prime_cpu(const struct cass_cpu_cand *c)
 static __always_inline
 bool cass_cpu_better(const struct cass_cpu_cand *a,
 		     const struct cass_cpu_cand *b, unsigned long p_util,
-		     unsigned long uc_min, int this_cpu, int prev_cpu, bool sync, bool rt,
+		     unsigned long uc_min, int this_cpu, int prev_cpu, bool sync,
 		     bool rt, bool prefer_idle)
 {
 #define cass_cmp(a, b) ({ res = (a) - (b); })
@@ -112,7 +112,7 @@ bool cass_cpu_better(const struct cass_cpu_cand *a,
 	bool a_prime = cass_prime_cpu(a);
 	bool b_prime = cass_prime_cpu(b);
 	const struct cass_cpu_cand *non_prime;
-	unsigned long margin;
+	unsigned long margin, hyst;
 
 	/* Prefer the CPU that's not overloaded */
 	if (cass_cmp(b->eff_util * a->cap_max, a->eff_util * b->cap_max))
@@ -175,6 +175,24 @@ bool cass_cpu_better(const struct cass_cpu_cand *a,
 	/* Prefer the CPU with lower relative utilization */
 	if (cass_cmp(b->util, a->util))
 		goto done;
+	/*
+	 * On shared llc systems (dsu/dynamiq) we can't reliably differentiate shared cache
+	 * with prev_cpu. Retain locality by making prev_cpu stickier when close.
+	 */
+	if (a->cpu != prev_cpu && b->cpu == prev_cpu) {
+		hyst = SCHED_CAPACITY_SCALE / 32; /* ~3% */
+
+		/*
+		 * If prev_cpu fits and isn't overloaded, require enough util advantage
+		 * to move away from it.
+		 */
+		if (fits_capacity(p_util, b->cap_max) &&
+			b->eff_util <= b->cap_max &&
+			a->util <= b->util + hyst) {
+			res = -1;
+			goto done;
+		}
+	}
 
 	/*
 	 * Prefer the current CPU for sync wakes, but only if it isn't
@@ -214,11 +232,6 @@ bool cass_cpu_better(const struct cass_cpu_cand *a,
 
 	/* Prefer the previous CPU */
 	if (cass_eq(a->cpu, prev_cpu) || !cass_cmp(b->cpu, prev_cpu))
-		goto done;
-
-	/* Prefer the CPU that shares a cache with the previous CPU */
-	if (cass_cmp(cpus_share_cache(a->cpu, prev_cpu),
-		     cpus_share_cache(b->cpu, prev_cpu)))
 		goto done;
 
 	/* @a isn't a better CPU than @b. @res must be <=0 to indicate such. */
@@ -386,11 +399,23 @@ static int cass_best_cpu(struct task_struct *p, int prev_cpu, bool sync, bool rt
 			 * cleanly fits the task and isn't overloaded.
 			 */
 			if (best->exit_lat &&
-			    (best->cpu == prev_cpu || cpus_share_cache(best->cpu, prev_cpu)) &&
-			    !cass_prime_cpu(best) &&
-			    best->cap_max >= uc_min &&
-			    fits_capacity(p_util, best->cap_max) &&
-			    best->eff_util <= best->cap_max)
+				best->cpu == prev_cpu &&
+				(best->cpu == prev_cpu || cpus_share_cache(best->cpu, prev_cpu)) &&
+				!cass_prime_cpu(best) &&
+				best->cap_max >= uc_min &&
+				fits_capacity(p_util, best->cap_max) &&
+				best->eff_util <= best->cap_max)
+				return best->cpu;
+			/*
+			 * Also early-exit for an obvious packed choice: non-idle, fits,
+			 * not overloaded, and prev_cpu.
+			*/
+			if (!best->exit_lat &&
+				best->cpu == prev_cpu &&
+				!cass_prime_cpu(best) &&
+				best->cap_max >= uc_min &&
+				fits_capacity(p_util, best->cap_max) &&
+				best->eff_util <= best->cap_max)
 				return best->cpu;
 		}
 	}
