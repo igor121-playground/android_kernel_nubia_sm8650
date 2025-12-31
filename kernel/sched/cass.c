@@ -24,6 +24,7 @@
  * relative utilization, all CPUs are kept at their lowest P-state necessary to
  * satisfy the overall load at any given moment.
  */
+#include <linux/string.h>
 
 struct cass_cpu_cand {
 	int cpu;
@@ -45,6 +46,7 @@ void cass_cpu_util(struct cass_cpu_cand *c, int this_cpu, bool sync)
 {
 	struct rq *rq = cpu_rq(c->cpu);
 	struct cfs_rq *cfs_rq = &rq->cfs;
+	unsigned long hard_util;
 	unsigned long est;
 
 	/* Get this CPU's utilization from CFS tasks */
@@ -66,7 +68,8 @@ void cass_cpu_util(struct cass_cpu_cand *c, int this_cpu, bool sync)
 		c->util -= min(c->util, task_util(current));
 
 	/* Get the utilization of everything other than CFS tasks */
-	c->hard_util = cpu_util_rt(rq) + cpu_util_dl(rq) + cpu_util_irq(rq);
+	hard_util = cpu_util_rt(rq) + cpu_util_dl(rq) + cpu_util_irq(rq);
+	c->hard_util = hard_util;
 
 	/*
 	 * Account for lost capacity due to time spent in RT/DL tasks and IRQs.
@@ -74,10 +77,10 @@ void cass_cpu_util(struct cass_cpu_cand *c, int this_cpu, bool sync)
 	 * order to produce consistently balanced task placement results between
 	 * CFS and RT tasks when CASS selects a CPU for them.
 	 */
-	c->cap = c->cap_max - min(c->hard_util, c->cap_max - 1);
+	c->cap = c->cap_max - min(hard_util, c->cap_max - 1);
 
 	/* Get the current capacity with thermal pressure excluded */
-	c->cap_no_therm = c->cap_orig - min(c->hard_util, c->cap_orig - 1);
+	c->cap_no_therm = c->cap_orig - min(hard_util, c->cap_orig - 1);
 }
 
 /*
@@ -104,6 +107,8 @@ bool cass_cpu_better(const struct cass_cpu_cand *a,
 #define cass_cmp(a, b) ({ res = (a) - (b); })
 #define cass_eq(a, b) ({ res = (a) == (b); })
 	long res;
+	bool a_prime = cass_prime_cpu(a);
+	bool b_prime = cass_prime_cpu(b);
 
 	/* Prefer the CPU that's not overloaded */
 	if (cass_cmp(b->eff_util / b->cap_max, a->eff_util / a->cap_max))
@@ -136,7 +141,7 @@ bool cass_cpu_better(const struct cass_cpu_cand *a,
 	}
 
 	/* Prefer the CPU that isn't the single fastest one in the system */
-	if (cass_cmp(cass_prime_cpu(b), cass_prime_cpu(a)))
+	if (cass_cmp(b_prime, a_prime))
 		goto done;
 
 	/* Prefer the CPU with lower relative utilization */
@@ -183,6 +188,8 @@ static int cass_best_cpu(struct task_struct *p, int prev_cpu, bool sync, bool rt
 	bool has_idle = false;
 	int cidx = 0, cpu;
 
+	memset(cands, 0, sizeof(cands));
+
 	/*
 	 * Get the utilization and uclamp minimum threshold for this task. Note
 	 * that RT tasks don't have per-entity load tracking.
@@ -206,6 +213,10 @@ static int cass_best_cpu(struct task_struct *p, int prev_cpu, bool sync, bool rt
 		struct cass_cpu_cand *curr = &cands[cidx];
 		struct cpuidle_state *idle_state;
 		struct rq *rq = cpu_rq(cpu);
+		unsigned long therm;
+
+		/* Initialize early so @best->cpu is never garbage */
+		curr->cpu = cpu;
 
 		/* Bias RT placement */
 		if (rt) {
@@ -219,10 +230,11 @@ static int cass_best_cpu(struct task_struct *p, int prev_cpu, bool sync, bool rt
 		curr->cap_orig = arch_scale_cpu_capacity(cpu);
 
 		/* Get the _current_, throttled maximum capacity of this CPU */
-		curr->cap_max = curr->cap_orig - thermal_load_avg(rq);
+		therm = thermal_load_avg(rq);
+		curr->cap_max = curr->cap_orig - therm;
 
 		/* Prefer the CPU that more closely meets the uclamp minimum */
-		if (curr->cap_max < uc_min && curr->cap_max < best->cap_max)
+		if (curr->cap_max < uc_min && best->cap_max >= uc_min)
 			continue;
 
 		/*
@@ -230,7 +242,6 @@ static int cass_best_cpu(struct task_struct *p, int prev_cpu, bool sync, bool rt
 		 * sync wakes, treat the current CPU as idle if @current is the
 		 * only running task.
 		 */
-		curr->cpu = cpu;
 		if ((sync && cpu == this_cpu && rq->nr_running == 1) ||
 		    available_idle_cpu(cpu) || sched_idle_cpu(cpu)) {
 			/*
