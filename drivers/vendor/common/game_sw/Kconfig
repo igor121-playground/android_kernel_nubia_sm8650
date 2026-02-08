@@ -1,0 +1,4 @@
+config NUBIA_GAME_SW
+	tristate "Nubia sliding switch driver"
+	default n
+	depends on GPIOLIB
