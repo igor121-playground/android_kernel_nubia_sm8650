@@ -63,6 +63,8 @@
 #define TS_DEFAULT_FIRMWARE				"goodix_firmware_9916r.bin"
 #define TS_DEFAULT_CFG_BIN				"goodix_cfg_group_9916r.bin"
 
+#define GOODIX_USB_DETECT_GLOBAL
+
 enum GOODIX_GESTURE_TYP {
 	GESTURE_SINGLE_TAP = (1 << 0),
 	GESTURE_DOUBLE_TAP = (1 << 1),
@@ -465,6 +467,10 @@ struct goodix_ts_hw_ops {
 	int (*get_capacitance_data)(struct goodix_ts_core *cd,
 			struct ts_rawdata_info *info);
 	int (*set_display_rotation)(struct goodix_ts_core *cd, int rotation);
+#ifdef GOODIX_USB_DETECT_GLOBAL
+	int (*set_enter_charger)(struct goodix_ts_core *cd);
+	int (*set_leave_charger)(struct goodix_ts_core *cd);
+#endif
 };
 
 /*
@@ -525,6 +531,13 @@ struct goodix_ts_core {
 	struct notifier_block ts_notifier;
 	struct goodix_ts_esd ts_esd;
 	bool esd_initialized;
+
+#ifdef GOODIX_USB_DETECT_GLOBAL
+	bool charger_status;
+	struct delayed_work charger_work;
+	struct workqueue_struct *charger_wq;
+	struct notifier_block charger_notifier;
+#endif
 
 #if IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER)
 	void *notifier_cookie;

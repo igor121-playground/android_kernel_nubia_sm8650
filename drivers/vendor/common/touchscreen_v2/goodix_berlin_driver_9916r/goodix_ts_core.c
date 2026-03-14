@@ -27,6 +27,14 @@
 #endif
 
 #include "goodix_ts_core.h"
+
+#ifdef GOODIX_USB_DETECT_GLOBAL
+#include <linux/power_supply.h>
+#endif
+
+#ifdef GOODIX_USB_DETECT_GLOBAL
+bool GOODIX_USB_detect_flag;
+#endif
 /* goodix fb test */
 // #include "../../../video/fbdev/core/fb_firefly.h"
 
@@ -1634,6 +1642,91 @@ void goodix_ts_pen_dev_remove(struct goodix_ts_core *core_data)
 	core_data->pen_dev = NULL;
 }
 
+#ifdef GOODIX_USB_DETECT_GLOBAL
+static bool goodix_get_charger_status(void)
+{
+	static struct power_supply *batt_psy;
+	union power_supply_propval val;
+	bool status = false;
+	int ret;
+
+	batt_psy = power_supply_get_by_name("battery");
+	if (!batt_psy)
+		return false;
+
+	ret = power_supply_get_property(batt_psy, POWER_SUPPLY_PROP_STATUS,
+					&val);
+	if (ret)
+		return false;
+
+	if ((val.intval == POWER_SUPPLY_STATUS_CHARGING) ||
+	    (val.intval == POWER_SUPPLY_STATUS_FULL)) {
+		status = true;
+	}
+
+	ts_info("charger status:%d", status);
+	return status;
+}
+
+static void goodix_work_charger_detect_work(struct work_struct *work)
+{
+	struct delayed_work *charger_work_delay =
+		container_of(work, struct delayed_work, work);
+	struct goodix_ts_core *core_data = container_of(
+		charger_work_delay, struct goodix_ts_core, charger_work);
+	const struct goodix_ts_hw_ops *hw_ops = core_data->hw_ops;
+
+	ts_info("into charger detect");
+	GOODIX_USB_detect_flag = goodix_get_charger_status();
+
+	if (atomic_read(&core_data->suspended)) {
+		core_data->charger_status = GOODIX_USB_detect_flag ? 1 : 0;
+		return;
+	}
+
+	if (GOODIX_USB_detect_flag && !core_data->charger_status) {
+		if (!hw_ops->set_enter_charger(core_data))
+			core_data->charger_status = 1;
+	} else if (!GOODIX_USB_detect_flag && core_data->charger_status) {
+		if (!hw_ops->set_leave_charger(core_data))
+			core_data->charger_status = 0;
+	}
+}
+
+static int goodix_charger_notify_call(struct notifier_block *nb,
+				      unsigned long event, void *data)
+{
+	struct power_supply *psy = data;
+	struct goodix_ts_core *core_data =
+		container_of(nb, struct goodix_ts_core, charger_notifier);
+
+	/*ts_info("into charger notify");*/
+	if (event != PSY_EVENT_PROP_CHANGED) {
+		return NOTIFY_DONE;
+	}
+
+	if ((strcmp(psy->desc->name, "usb") == 0) ||
+	    (strcmp(psy->desc->name, "ac") == 0)) {
+		queue_delayed_work(core_data->charger_wq,
+				   &core_data->charger_work,
+				   msecs_to_jiffies(500));
+	}
+
+	return NOTIFY_DONE;
+}
+
+static int goodix_init_charger_notifier(struct goodix_ts_core *core_data)
+{
+	int ret = 0;
+
+	ts_info("Init Charger notifier");
+
+	core_data->charger_notifier.notifier_call = goodix_charger_notify_call;
+	ret = power_supply_reg_notifier(&core_data->charger_notifier);
+	return ret;
+}
+#endif
+
 /**
  * goodix_ts_esd_work - check hardware status and recovery
  *  the hardware if needed.
@@ -1932,6 +2025,12 @@ out:
 	hw_ops->irq_enable(core_data, true);
 	/* open esd */
 	goodix_ts_blocking_notify(NOTIFY_RESUME, NULL);
+
+#ifdef GOODIX_USB_DETECT_GLOBAL
+	if (core_data->charger_status)
+		core_data->hw_ops->set_enter_charger(core_data);
+#endif
+
 	ts_info("Resume end");
 	return 0;
 }
@@ -2144,6 +2243,17 @@ int goodix_ts_stage2_init(struct goodix_ts_core *cd)
 	cd->fb_notifier.notifier_call = goodix_ts_fb_notifier_callback;
 	if (fb_register_client(&cd->fb_notifier))
 		ts_err("Failed to register fb notifier client:%d", ret);
+#endif
+
+#ifdef GOODIX_USB_DETECT_GLOBAL
+	cd->charger_wq = create_singlethread_workqueue("GOODIX_charger_detect");
+	if (!cd->charger_wq) {
+		ts_err("allocating charger_wq failed");
+	} else  {
+		GOODIX_USB_detect_flag = goodix_get_charger_status();
+		INIT_DELAYED_WORK(&cd->charger_work, goodix_work_charger_detect_work);
+		goodix_init_charger_notifier(cd);
+	}
 #endif
 	/* create sysfs files */
 	goodix_ts_sysfs_init(cd);

@@ -1660,6 +1660,57 @@ int zte_set_display_rotation(struct goodix_ts_core *cd, int rotation)
 	return cd->hw_ops->send_cmd(cd, &cmd);
 }
 
+#ifdef GOODIX_USB_DETECT_GLOBAL
+int zte_brl_enter_charger(struct goodix_ts_core *cd)
+{
+	struct goodix_ts_cmd cmd;
+
+	if (cd->init_stage < CORE_INIT_STAGE2 || atomic_read(&cd->suspended)) {
+		ts_err("%s: not ready", __func__);
+		return 0;
+	}
+
+	if (cd->bus->ic_type == IC_TYPE_BERLIN_D) {
+		cmd.cmd = 0xAF;
+		cmd.len = 0x5;
+		cmd.data[0] = 0x01;
+	} else {
+		cmd.cmd = 0x10;
+		cmd.len = 0x4;
+	}
+
+	if (cd->hw_ops->send_cmd(cd, &cmd)) {
+		ts_err("%s: failed send charger cmd", __func__);
+		return -EIO;
+	}
+
+	ts_info("%s: set success", __func__);
+	return 0;
+}
+
+int zte_brl_leave_charger(struct goodix_ts_core *cd)
+{
+	struct goodix_ts_cmd cmd;
+
+	if (cd->bus->ic_type == IC_TYPE_BERLIN_D) {
+		cmd.cmd = 0xAF;
+		cmd.len = 0x5;
+		cmd.data[0] = 0x00;
+	} else {
+		cmd.cmd = 0x11;
+		cmd.len = 0x4;
+	}
+
+	if (cd->hw_ops->send_cmd(cd, &cmd)) {
+		ts_err("%s: failed send charger cmd", __func__);
+		return -EIO;
+	}
+
+	ts_info("%s: set success", __func__);
+	return 0;
+}
+#endif
+
 static struct goodix_ts_hw_ops brl_hw_ops = {
 	.power_on = brl_power_on,
 	.resume = brl_resume,
@@ -1680,6 +1731,10 @@ static struct goodix_ts_hw_ops brl_hw_ops = {
 	.after_event_handler = brl_after_event_handler,
 	.get_capacitance_data = brl_get_capacitance_data,
 	.set_display_rotation = zte_set_display_rotation,
+#ifdef GOODIX_USB_DETECT_GLOBAL
+	.set_enter_charger = zte_brl_enter_charger,
+	.set_leave_charger = zte_brl_leave_charger,
+#endif
 };
 
 struct goodix_ts_hw_ops *goodix_get_hw_ops(void)
