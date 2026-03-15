@@ -467,6 +467,7 @@ struct goodix_ts_hw_ops {
 	int (*get_capacitance_data)(struct goodix_ts_core *cd,
 			struct ts_rawdata_info *info);
 	int (*set_display_rotation)(struct goodix_ts_core *cd, int rotation);
+	int (*set_tp_report_rate)(struct goodix_ts_core *cd, bool enable_high_rate);
 #ifdef GOODIX_USB_DETECT_GLOBAL
 	int (*set_enter_charger)(struct goodix_ts_core *cd);
 	int (*set_leave_charger)(struct goodix_ts_core *cd);
@@ -531,6 +532,8 @@ struct goodix_ts_core {
 	struct notifier_block ts_notifier;
 	struct goodix_ts_esd ts_esd;
 	bool esd_initialized;
+
+	bool is_rate_high;
 
 #ifdef GOODIX_USB_DETECT_GLOBAL
 	bool charger_status;

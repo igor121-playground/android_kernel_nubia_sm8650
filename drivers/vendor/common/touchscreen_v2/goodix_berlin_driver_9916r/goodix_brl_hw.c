@@ -1711,6 +1711,79 @@ int zte_brl_leave_charger(struct goodix_ts_core *cd)
 }
 #endif
 
+int report_rate_240HZ(struct goodix_ts_core *cd, bool enable)
+{
+	struct goodix_ts_cmd cmd;
+
+	if (!enable)
+		return 0;
+
+	cmd.len = 5;
+	cmd.cmd = 0x9d;
+
+	ts_info("%s success in 240HZ", __func__);
+
+	cmd.data[0] = 0x01; /*240HZ*/
+	cmd.data[1] = 0xA3;
+	cmd.data[2] = 0x00;
+
+	if (cd->hw_ops->send_cmd(cd, &cmd)) {
+		ts_err("%s: failed send cmd", __func__);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+int report_rate_960HZ(struct goodix_ts_core *cd, bool enable)
+{
+	struct goodix_ts_cmd cmd;
+
+	cmd.len = 6;
+	cmd.cmd = 0xC1;
+
+	if (enable) {
+		ts_info("%s success in 960Hz", __func__);
+		cmd.data[0] = 0x01; /*960Hz*/
+		cmd.data[1] = 0x00;
+		cmd.data[2] = 0xC8;
+	} else {
+		ts_info("%s success exit 960HZ", __func__);
+		cmd.data[0] = 0x00; /*exit960Hz*/
+		cmd.data[1] = 0x00;
+		cmd.data[2] = 0xC7;
+	}
+
+	if (cd->hw_ops->send_cmd(cd, &cmd)) {
+		ts_err("%s: failed send cmd", __func__);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+int zte_tp_set_report_rate(struct goodix_ts_core *cd, bool enable_high_rate)
+{
+	int ret = 0;
+
+	if (cd->bus->ic_type != IC_TYPE_BERLIN_D) {
+		ts_err("%s: not support", __func__);
+		return ret;
+	}
+
+	ret = report_rate_960HZ(cd, enable_high_rate);
+	if (ret)
+		return ret;
+
+	ret = report_rate_240HZ(cd, !enable_high_rate);
+	if (ret)
+		return ret;
+
+	cd->is_rate_high = enable_high_rate;
+
+	return ret;
+}
+
 static struct goodix_ts_hw_ops brl_hw_ops = {
 	.power_on = brl_power_on,
 	.resume = brl_resume,
@@ -1731,6 +1804,7 @@ static struct goodix_ts_hw_ops brl_hw_ops = {
 	.after_event_handler = brl_after_event_handler,
 	.get_capacitance_data = brl_get_capacitance_data,
 	.set_display_rotation = zte_set_display_rotation,
+	.set_tp_report_rate = zte_tp_set_report_rate,
 #ifdef GOODIX_USB_DETECT_GLOBAL
 	.set_enter_charger = zte_brl_enter_charger,
 	.set_leave_charger = zte_brl_leave_charger,
