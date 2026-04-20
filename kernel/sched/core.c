@@ -91,6 +91,7 @@
 #include "pelt.h"
 #include "smp.h"
 #include "stats.h"
+#include <linux/fie.h>
 
 #include "../workqueue_internal.h"
 #include "../../io_uring/io-wq.h"
