@@ -12610,8 +12610,6 @@ static void nohz_balancer_kick(struct rq *rq)
 		goto out;
 	}
 
-	rcu_read_lock();
-
 	sd = rcu_dereference(per_cpu(sd_asym_packing, cpu));
 	if (sd) {
 		/*
@@ -12626,7 +12624,7 @@ static void nohz_balancer_kick(struct rq *rq)
 			if (sched_use_asym_prio(sd, i) &&
 			    sched_asym_prefer(i, cpu)) {
 				flags = NOHZ_STATS_KICK | NOHZ_BALANCE_KICK;
-				goto unlock;
+				goto out;
 			}
 		}
 	}
@@ -12637,10 +12635,8 @@ static void nohz_balancer_kick(struct rq *rq)
 		 * When ASYM_CPUCAPACITY; see if there's a higher capacity CPU
 		 * to run the misfit task on.
 		 */
-		if (check_misfit_status(rq, sd)) {
+		if (check_misfit_status(rq, sd))
 			flags = NOHZ_STATS_KICK | NOHZ_BALANCE_KICK;
-			goto unlock;
-		}
 
 		/*
 		 * For asymmetric systems, we do not want to nicely balance
@@ -12649,7 +12645,7 @@ static void nohz_balancer_kick(struct rq *rq)
 		 *
 		 * Skip the LLC logic because it's not relevant in that case.
 		 */
-		goto unlock;
+		goto out;
 	}
 
 	sds = rcu_dereference(per_cpu(sd_llc_shared, cpu));
@@ -12664,13 +12660,9 @@ static void nohz_balancer_kick(struct rq *rq)
 		 * like this LLC domain has tasks we could move.
 		 */
 		nr_busy = atomic_read(&sds->nr_busy_cpus);
-		if (nr_busy > 1) {
-			flags = NOHZ_STATS_KICK | NOHZ_BALANCE_KICK;
-			goto unlock;
-		}
+		if (nr_busy > 1)
+			flags |= NOHZ_STATS_KICK | NOHZ_BALANCE_KICK;
 	}
-unlock:
-	rcu_read_unlock();
 out:
 	if (READ_ONCE(nohz.needs_update))
 		flags |= NOHZ_NEXT_KICK;
@@ -12683,16 +12675,13 @@ static void set_cpu_sd_state_busy(int cpu)
 {
 	struct sched_domain *sd;
 
-	rcu_read_lock();
 	sd = rcu_dereference(per_cpu(sd_llc, cpu));
 
 	if (!sd || !sd->nohz_idle)
-		goto unlock;
+		return;
 	sd->nohz_idle = 0;
 
 	atomic_inc(&sd->shared->nr_busy_cpus);
-unlock:
-	rcu_read_unlock();
 }
 
 void nohz_balance_exit_idle(struct rq *rq)
@@ -12712,16 +12701,13 @@ static void set_cpu_sd_state_idle(int cpu)
 {
 	struct sched_domain *sd;
 
-	rcu_read_lock();
 	sd = rcu_dereference(per_cpu(sd_llc, cpu));
 
 	if (!sd || sd->nohz_idle)
-		goto unlock;
+		return;
 	sd->nohz_idle = 1;
 
 	atomic_dec(&sd->shared->nr_busy_cpus);
-unlock:
-	rcu_read_unlock();
 }
 
 /*
