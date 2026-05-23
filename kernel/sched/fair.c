@@ -7410,6 +7410,7 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
  */
 static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 {
+	int ret;
 	if (task_is_throttled(p)) {
 		dequeue_throttled_task(p, flags);
 		return true;
@@ -7418,8 +7419,9 @@ static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	if (!p->se.sched_delayed)
 		util_est_dequeue(&rq->cfs, p);
 
+	ret = dequeue_entities(rq, &p->se, flags);
 	util_est_update(&rq->cfs, p, flags & DEQUEUE_SLEEP);
-	if (dequeue_entities(rq, &p->se, flags) < 0)
+	if (ret < 0)
 		return false;
 
 	/*
