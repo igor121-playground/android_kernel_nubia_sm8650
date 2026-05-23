@@ -1424,6 +1424,7 @@ static void update_curr(struct cfs_rq *cfs_rq)
 	}
 
 	curr->sum_exec_runtime += delta_exec;
+	curr->delta_exec += delta_exec;
 	schedstat_add(cfs_rq->exec_clock, delta_exec);
 
 	curr->vruntime += calc_delta_fair(delta_exec, curr);
@@ -5030,12 +5031,40 @@ static inline void util_est_update(struct cfs_rq *cfs_rq,
 	if (!sched_feat(UTIL_EST))
 		return;
 
+	/* Get current estimate of utilization */
+	ue = p->se.avg.util_est;
+
 	/*
-	 * Skip update of task's estimated utilization when the task has not
-	 * yet completed an activation, e.g. being migrated.
+	 * If a task is running, update util_est ignoring utilization
+	 * invariance so that if the task suddenly becomes busy we will
+	 * ramp up quickly to settle down to our new util_avg.
+	 *
+	 * Two-field layout note: the estimate surfaced to the rest of the
+	 * scheduler is _task_util_est() == max(ewma, enqueued & ~UNCHANGED).
+	 * Project that value forward and write it back to both fields so the
+	 * dequeue/enqueue in util_est_update_running() stays balanced.
 	 */
-	if (!task_sleep)
-		return;
+	if (!task_sleep) {
+		u64 delta = p->se.delta_exec;
+		unsigned int prev = max(ue.ewma,
+					ue.enqueued & ~UTIL_AVG_UNCHANGED);
+		unsigned int next;
+
+		do_div(delta, 1000);
+		next = approximate_util_avg(prev, delta);
+		/*
+		 * Keep accumulating delta_exec if it is too small to
+		 * cause a change.
+		 */
+		if (next != prev) {
+			ue.ewma = next;
+			ue.enqueued = next;
+			p->se.delta_exec = 0;
+		}
+		goto done;
+	} else {
+		p->se.delta_exec = 0;
+	}
 
 	/* Get current estimate of utilization */
 	ewma = READ_ONCE(p->se.avg.util_est);
@@ -5099,6 +5128,14 @@ done:
 	WRITE_ONCE(p->se.avg.util_est, ewma);
 
 	trace_sched_util_est_se_tp(&p->se);
+}
+
+static inline void util_est_update_running(struct cfs_rq *cfs_rq,
+					   struct task_struct *p)
+{
+	util_est_dequeue(cfs_rq, p);
+	util_est_update(cfs_rq, p, false);
+	util_est_enqueue(cfs_rq, p);
 }
 
 static inline int util_fits_cpu(unsigned long util,
@@ -9070,6 +9107,8 @@ again:
 simple:
 #endif
 	put_prev_set_next_task(rq, prev, p);
+	if (prev->on_rq)
+		util_est_update_running(&rq->cfs, prev);
 	return p;
 
 idle:
@@ -13479,6 +13518,8 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
 		cfs_rq = cfs_rq_of(se);
 		entity_tick(cfs_rq, se, queued);
 	}
+
+	util_est_update_running(&rq->cfs, curr);
 
 	if (queued)
 		return;
