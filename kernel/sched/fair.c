@@ -5027,6 +5027,7 @@ static inline void util_est_update(struct cfs_rq *cfs_rq,
 				   bool task_sleep)
 {
 	unsigned int ewma, dequeued, last_ewma_diff;
+	unsigned int util, diff, prev;
 	int ret = 0;
 
 	trace_android_rvh_util_est_update(cfs_rq, p, task_sleep, &ret);
@@ -5037,53 +5038,37 @@ static inline void util_est_update(struct cfs_rq *cfs_rq,
 		return;
 
 	/* Get current estimate of utilization */
-	ue = p->se.avg.util_est;
+	ewma = READ_ONCE(p->se.avg.util_est);
 
-	/*
-	 * If a task is running, update util_est ignoring utilization
-	 * invariance so that if the task suddenly becomes busy we will
-	 * ramp up quickly to settle down to our new util_avg.
-	 *
-	 * Two-field layout note: the estimate surfaced to the rest of the
-	 * scheduler is _task_util_est() == max(ewma, enqueued & ~UNCHANGED).
-	 * Project that value forward and write it back to both fields so the
-	 * dequeue/enqueue in util_est_update_running() stays balanced.
-	 */
 	if (!task_sleep) {
 		/*
 		 * Only project forward when the task is actually running
 		 * hotter than it was at its last dequeue. If util has not
 		 * grown past the dequeue snapshot by more than the margin,
-		 * the dequeue-time EWMA is still a good estimate and we just
-		 * keep accumulating delta_exec for later.
+		 * the dequeue-time EWMA is still a good estimate.
 		 */
-		if (task_util(p) > task_util_dequeued(p) &&
-		    task_util(p) - task_util_dequeued(p) > UTIL_EST_MARGIN) {
-			u64 delta = p->se.delta_exec;
-			unsigned int prev = max(ue.ewma,
-						ue.enqueued & ~UTIL_AVG_UNCHANGED);
-			unsigned int next;
+		util = task_util(p);
+		if (util > task_util_dequeued(p) &&
+		    util - task_util_dequeued(p) > UTIL_EST_MARGIN) {
+			prev = ewma & ~UTIL_AVG_UNCHANGED;
+			if (prev < util) {
+				diff = util - prev;
+				ewma = prev + (diff >> UTIL_EST_WEIGHT_SHIFT);
 
-			do_div(delta, 1000);
-			next = approximate_util_avg(prev, delta);
-			/*
-			 * Keep accumulating delta_exec if it is too small
-			 * to cause a change.
-			 */
-			if (next != prev) {
-				ue.ewma = next;
-				ue.enqueued = next;
-				p->se.delta_exec = 0;
+				/*
+				 * Keep accumulating delta_exec if it is too small
+				 * to cause a visible estimate change.
+				 */
+				if (ewma != prev) {
+					p->se.delta_exec = 0;
+					goto done_running;
+				}
 			}
-			goto done_running;
 		}
 		return;
 	} else {
 		p->se.delta_exec = 0;
 	}
-
-	/* Get current estimate of utilization */
-	ewma = READ_ONCE(p->se.avg.util_est);
 
 	/*
 	 * If the PELT values haven't changed since enqueue time,
