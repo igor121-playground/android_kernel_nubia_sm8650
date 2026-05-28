@@ -85,25 +85,40 @@ void cass_cpu_util(struct cass_cpu_cand *c, int this_cpu, bool sync)
 
 /*
  * Returns the CPU id of the single prime CPU, or -1 if there isn't one.
+ * The result is cached after the first call since it never changes at runtime.
  */
+static int cass_cached_prime_cpu = -1;
+static bool cass_cached_prime_valid;
+static unsigned long cass_min_capacity = SCHED_CAPACITY_SCALE;
+
 static __always_inline
 int cass_prime_cpu_id(void)
 {
 	int prime = -1, prev = -1;
+	unsigned long min_cap = ULONG_MAX;
 	int cpu;
 
+	if (likely(cass_cached_prime_valid))
+		goto done;
+
 	for_each_cpu(cpu, cpu_possible_mask) {
+		unsigned long cap = max_t(unsigned long, 1,
+					  arch_scale_cpu_capacity(cpu));
+
 		prev = prime;
 		prime = cpu;
+		if (cap < min_cap)
+			min_cap = cap;
 	}
 
-	if (prime < 0 || prev < 0)
-		return -1;
+	if (prime >= 0 && prev >= 0 &&
+	    arch_scale_cpu_capacity(prev) < arch_scale_cpu_capacity(prime))
+		cass_cached_prime_cpu = prime;
 
-	if (arch_scale_cpu_capacity(prev) >= arch_scale_cpu_capacity(prime))
-		return -1;
-
-	return prime;
+	cass_min_capacity = min_cap;
+	cass_cached_prime_valid = true;
+done:
+	return cass_cached_prime_cpu;
 }
 
 static __always_inline
@@ -138,23 +153,17 @@ bool cass_cpu_better(const struct cass_cpu_cand *a,
 		goto done;
 
 	/*
-	 * Prefer packing small, non-sync work on an active cpu over waking an idle
-	 * CPU, unless the active CPU is much worse.
+	 * Prefer the CPU that isn't the single fastest one in the system,
+	 * but only for low-util, non-sync, non-urgent tasks.
 	 */
-	if (!prefer_idle && !!a->exit_lat != !!b->exit_lat) {
-		if (!a->exit_lat && b->exit_lat) {
-			if (a->eff_util <= a->cap_max &&
-			    a->util <= b->util + eevdf_lag_margin) {
-				res = 1;
-				goto done;
-			}
-		} else if (a->exit_lat && !b->exit_lat) {
-			if (b->eff_util <= b->cap_max &&
-			    b->util <= a->util + eevdf_lag_margin) {
-				res = -1;
-				goto done;
-			}
-		}
+	if (a_prime != b_prime) {
+		non_prime = a_prime ? b : a;
+
+		if (allow_prime_avoidance &&
+		    non_prime->cap_max >= uc_min &&
+		    fits_capacity(p_util, non_prime->cap_max) &&
+		    cass_cmp(b_prime, a_prime))
+			goto done;
 	}
 
 	/* RT specific preferences */
@@ -173,17 +182,23 @@ bool cass_cpu_better(const struct cass_cpu_cand *a,
 	}
 
 	/*
-	 * Prefer the CPU that isn't the single fastest one in the system,
-	 * but only for low-util, non-sync, non-urgent tasks.
+	 * Prefer packing small, non-sync work on an active cpu over waking an idle
+	 * CPU, unless the active CPU is much worse.
 	 */
-	if (a_prime != b_prime) {
-		non_prime = a_prime ? b : a;
-
-		if (allow_prime_avoidance &&
-		    non_prime->cap_max >= uc_min &&
-		    fits_capacity(p_util, non_prime->cap_max) &&
-		    cass_cmp(b_prime, a_prime))
-			goto done;
+	if (!prefer_idle && !!a->exit_lat != !!b->exit_lat) {
+		if (!a->exit_lat && b->exit_lat) {
+			if (a->eff_util <= a->cap_max &&
+			    a->util <= b->util + eevdf_lag_margin) {
+				res = 1;
+				goto done;
+			}
+		} else if (a->exit_lat && !b->exit_lat) {
+			if (b->eff_util <= b->cap_max &&
+			    b->util <= a->util + eevdf_lag_margin) {
+				res = -1;
+				goto done;
+			}
+		}
 	}
 
 	/* Prefer lower relative utilization */
@@ -218,16 +233,19 @@ bool cass_cpu_better(const struct cass_cpu_cand *a,
 
 		if (a->cpu == this_cpu) {
 			if (a->eff_util <= a->cap_max &&
-			    a->util <= b->util + margin &&
-			    cass_eq(a->cpu, this_cpu))
+			    a->util <= b->util + margin)
 				goto done;
 		} else if (b->cpu == this_cpu) {
 			if (b->eff_util <= b->cap_max &&
-			    b->util <= a->util + margin &&
-			    !cass_cmp(b->cpu, this_cpu))
+			    b->util <= a->util + margin)
 				goto done;
 		}
 	}
+
+	/* When both CPUs are idle, prefer the smaller one for energy efficiency */
+	if (a->exit_lat && b->exit_lat &&
+	    cass_cmp(b->cap_max, a->cap_max))
+		goto done;
 
 	/* Prefer the CPU with higher capacity */
 	if (cass_cmp(a->cap, b->cap))
@@ -245,6 +263,15 @@ bool cass_cpu_better(const struct cass_cpu_cand *a,
 	if (cass_cmp(b->therm, a->therm))
 		goto done;
 
+	/* Prefer the CPU sharing an L2 cluster with prev_cpu */
+	if (a->cpu != prev_cpu && b->cpu != prev_cpu) {
+		bool a_same = topology_cluster_id(a->cpu) == topology_cluster_id(prev_cpu);
+		bool b_same = topology_cluster_id(b->cpu) == topology_cluster_id(prev_cpu);
+
+		if (a_same != b_same && cass_cmp(a_same, b_same))
+			goto done;
+	}
+
 	/* Prefer the previous CPU */
 	if (cass_eq(a->cpu, prev_cpu) || !cass_cmp(b->cpu, prev_cpu))
 		goto done;
@@ -261,14 +288,18 @@ bool cass_allow_prime_avoidance(unsigned long p_util, unsigned long uc_min, bool
 	/* Never avoid prime CPU for sync wakes or uclamp-min constrained tasks */
 	if (sync || uc_min)
 		return false;
-	/* Only avoid for tasks using < 12.5% of a single CPU */
-	return p_util < (SCHED_CAPACITY_SCALE / 8);
+	/*
+	 * Only avoid for tasks using less than the smallest CPU's full capacity.
+	 * This keeps the power-hungry prime CPU idle for all but tasks that
+	 * actually need its throughput, since anything smaller fits elsewhere.
+	 */
+	return p_util < cass_min_capacity;
 }
 
 static __always_inline
 bool cass_prev_cpu_fastpath(struct task_struct *p, int prev_cpu, int this_cpu,
 			    unsigned long p_util, unsigned long uc_min,
-			    bool sync, bool rt)
+			    bool sync)
 {
 	struct cass_cpu_cand c = { .cpu = prev_cpu };
 	struct rq *rq;
@@ -278,10 +309,6 @@ bool cass_prev_cpu_fastpath(struct task_struct *p, int prev_cpu, int this_cpu,
 		return false;
 
 	rq = cpu_rq(prev_cpu);
-
-	if (!((sync && prev_cpu == this_cpu && rq->nr_running == 1) ||
-	      choose_idle_cpu(prev_cpu, p)))
-		return false;
 
 	c.cap_orig = max_t(unsigned long, 1, arch_scale_cpu_capacity(prev_cpu));
 	therm = min(thermal_load_avg(rq), c.cap_orig - 1);
@@ -326,30 +353,39 @@ static int cass_best_cpu(struct task_struct *p, int prev_cpu, bool sync, bool rt
 	p_util = rt ? 0 : task_util_est(p);
 	uc_min = uclamp_eff_value(p, UCLAMP_MIN);
 
-	allow_prime_avoidance = cass_allow_prime_avoidance(p_util, uc_min, sync);
 	prime_cpu = cass_prime_cpu_id();
+	allow_prime_avoidance = cass_allow_prime_avoidance(p_util, uc_min, sync);
 
 	/*
 	 * Prefer idle CPUs for sync wakes and for "heavy enough" work; otherwise,
 	 * prefer packing onto an already-active CPU.
 	 */
-	prefer_idle = sync || rt || uc_min || p_util >= (SCHED_CAPACITY_SCALE / 8);
+	/*
+	 * Scale the prefer_idle threshold to the smallest CPU in the system:
+	 * tasks using >= 100% of the smallest CPU are worth waking an idle CPU for.
+	 * Smaller tasks are packed onto already-active CPUs for energy efficiency.
+	 */
+	prefer_idle = sync || rt || uc_min || p_util >= cass_min_capacity;
 
-	if (cass_prev_cpu_fastpath(p, prev_cpu, this_cpu, p_util, uc_min, sync, rt))
+	/* Single-CPU affinity fastpath: no decision to make */
+	if (unlikely(cpumask_weight(p->cpus_ptr) == 1))
+		return cpumask_first(p->cpus_ptr);
+
+	if (cass_prev_cpu_fastpath(p, prev_cpu, this_cpu, p_util, uc_min, sync))
 		return prev_cpu;
 
 	if (!rt)
 		p_vruntime = READ_ONCE(p->se.vruntime);
 
-	eevdf_lag_margin = SCHED_CAPACITY_SCALE / 16;
+	eevdf_lag_margin = SCHED_CAPACITY_SCALE / 2;
 	if (!rt && !sync && !uc_min && p_util < (SCHED_CAPACITY_SCALE / 8)) {
 		cfs_rq = &cpu_rq(this_cpu)->cfs;
 		s64 this_lag = READ_ONCE(cfs_rq->zero_vruntime) - (s64)p_vruntime;
 
 		if (this_lag < 0) {
-			eevdf_lag_margin = SCHED_CAPACITY_SCALE / 8;
+			eevdf_lag_margin = SCHED_CAPACITY_SCALE;
 		} else if (this_lag > 0) {
-			eevdf_lag_margin = SCHED_CAPACITY_SCALE / 32;
+			eevdf_lag_margin = SCHED_CAPACITY_SCALE / 4;
 		}
 	}
 
@@ -393,6 +429,17 @@ static int cass_best_cpu(struct task_struct *p, int prev_cpu, bool sync, bool rt
 
 		/* Prefer the CPU that more closely meets the uclamp minimum */
 		if (best_valid && curr->cap_max < uc_min && best->cap_max >= uc_min)
+			continue;
+
+		/* Skip CPUs that can't fit the task if we already have a fitting candidate */
+		if (best_valid && fits_capacity(p_util, best->cap_max) &&
+		    !fits_capacity(p_util, curr->cap_max))
+			continue;
+
+		/* Skip the prime CPU when prime avoidance is active and we have a good candidate */
+		if (allow_prime_avoidance && best_valid &&
+		    cass_prime_cpu(curr, prime_cpu) && !cass_prime_cpu(best, prime_cpu) &&
+		    best->cap_max >= uc_min && fits_capacity(p_util, best->cap_max))
 			continue;
 
 		/*
@@ -485,28 +532,13 @@ static int cass_best_cpu(struct task_struct *p, int prev_cpu, bool sync, bool rt
 			best = curr;
 			best_valid = true;
 			cidx ^= 1;
-			/*
-			 * Early-exit when we land on an idle, cache-affined CPU that
-			 * cleanly fits the task and isn't overloaded.
-			 */
-			if (best->exit_lat &&
-				best->cpu == prev_cpu &&
-				!cass_prime_cpu(best, prime_cpu) &&
-				best->cap_max >= uc_min &&
-				fits_capacity(p_util, best->cap_max) &&
-				best->eff_util <= best->cap_max)
+			if (best->cpu == prev_cpu &&
+			    !cass_prime_cpu(best, prime_cpu) &&
+			    best->cap_max >= uc_min &&
+			    fits_capacity(p_util, best->cap_max) &&
+			    best->eff_util <= best->cap_max)
 				return best->cpu;
-			/*
-			 * Also early-exit for an obvious packed choice: non-idle, fits,
-			 * not overloaded, and prev_cpu.
-			*/
-			if (!best->exit_lat &&
-				best->cpu == prev_cpu &&
-				!cass_prime_cpu(best, prime_cpu) &&
-				best->cap_max >= uc_min &&
-				fits_capacity(p_util, best->cap_max) &&
-				best->eff_util <= best->cap_max)
-				return best->cpu;
+
 		}
 	}
 
