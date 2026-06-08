@@ -16,6 +16,8 @@
 #include <linux/sched/mm.h>
 #include <linux/sort.h>
 #include <uapi/linux/sched/types.h>
+#include <linux/cpu_boost.h>
+#include <soc/qcom/dcvs_boost.h>
 
 /* The minimum number of pages to free per reclaim */
 #define MIN_FREE_PAGES (CONFIG_ANDROID_SIMPLE_LMK_MINFREE * SZ_1M / PAGE_SIZE)
@@ -228,6 +230,8 @@ static void scan_and_kill(void)
 		return;
 	}
 
+	qcom_dcvs_bus_boost_kick_max(100);
+	cpu_boost_max(100);
 	/* Minimize the number of victims if we found more pages than needed */
 	if (pages_found > MIN_FREE_PAGES) {
 		/* First round of processing to weed out unneeded victims */
