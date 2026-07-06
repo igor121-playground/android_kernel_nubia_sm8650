@@ -91,7 +91,6 @@
 #include "pelt.h"
 #include "smp.h"
 #include "stats.h"
-#include <linux/fie.h>
 
 #include "../workqueue_internal.h"
 #include "../../io_uring/io-wq.h"
@@ -781,7 +780,6 @@ void update_rq_clock(struct rq *rq)
 	delta = sched_clock_cpu(cpu_of(rq)) - rq->clock;
 	if (delta < 0)
 		return;
-	fie_update_rq_clock(rq);
 	rq->clock += delta;
 	update_rq_clock_task(rq, delta);
 }
