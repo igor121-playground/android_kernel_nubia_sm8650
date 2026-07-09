@@ -762,6 +762,10 @@ void fie_update_rq_clock(struct rq *rq)
 	if (unlikely(!cpu_active(cpu) || !cpu_active(rq->cpu)))
 		return;
 
+	/* When the runqueue is idle, skip FIE */
+	if (!rq->nr_running)
+		return;
+
 	/*
 	 * Update the local CPU's frequency scale info, even if the runqueue in
 	 * question doesn't belong to the current CPU. This way, any runqueue
