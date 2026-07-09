@@ -736,13 +736,6 @@ static void update_freq_scale(int cpu, struct rq *rq, bool local_cpu)
 		}
 	}
 	raw_spin_unlock(&sfd->lock);
-
-	/*
-	 * Update the frequency scale data for the remote CPU when the updated
-	 * runqueue doesn't belong to this CPU. This recursion is bounded.
-	 */
-	if (rq->cpu != cpu)
-		update_freq_scale(rq->cpu, rq, false);
 }
 
 /*
@@ -772,8 +765,11 @@ void fie_update_rq_clock(struct rq *rq)
 	 * clock updates for remote CPUs will have fresh counter data, for when
 	 * the current CPU's runqueue is the one being updated remotely.
 	 *
-	 * This also handles updating the frequency scale info for the remote
-	 * CPU if the runqueue is indeed remote.
+	 * The remote CPU's arch_freq_scale is not updated here to avoid taking
+	 * its spinlock on every remote rq clock update. The staleness is
+	 * limited by the minimum sample window and is negligible compared to
+	 * PELT's half-life. The remote CPU will update it's own arch_freq_scale
+	 * on its next update_rq_clock() call.
 	 *
 	 * Although the measured CPU frequency is ignored by PELT for the idle
 	 * task, measurements are still allowed inside the idle task so that IRQ
