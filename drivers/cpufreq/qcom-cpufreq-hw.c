@@ -287,6 +287,8 @@ static unsigned int qcom_cpufreq_hw_fast_switch(struct cpufreq_policy *policy,
 	index = policy->cached_resolved_idx;
 	freq = policy->freq_table[index].frequency;
 
+	writel_relaxed(index, data->base + soc_data->reg_perf_state);
+
 	if (data->per_core_dcvs)
 		for (i = 1; i < cpumask_weight(policy->related_cpus); i++)
 			writel_relaxed(index, data->base + soc_data->reg_perf_state + i * 4);
