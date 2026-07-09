@@ -509,9 +509,8 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 	fie_cpufreq_pressure(cpu, thermal_pressure >= policy->cpuinfo.max_freq ?
 			     UINT_MAX : thermal_pressure);
 
-	/* Update thermal pressure (the boost frequencies are accepted) */
+	/* Trace the thermal pressure before FIE aggregates it */
 	trace_dcvsh_freq(cpu, qcom_cpufreq_get_freq(cpu), throttled_freq, thermal_pressure);
-	arch_update_thermal_pressure(policy->related_cpus, thermal_pressure);
 	data->dcvsh_freq_limit = thermal_pressure;
 
 out:
