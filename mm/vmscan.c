@@ -3265,6 +3265,19 @@ static bool can_age_anon_pages(struct pglist_data *pgdat,
 	return can_demote(pgdat->node_id, sc);
 }
 
+#define CRITICAL_OOM_SCORE_ADJ	(-900)
+
+static __always_inline bool task_is_critical(void)
+{
+	if (current->flags & PF_KTHREAD)
+		return false;
+
+	if (unlikely(!current->signal))
+		return false;
+
+	return READ_ONCE(current->signal->oom_score_adj) <= CRITICAL_OOM_SCORE_ADJ;
+}
+
 #ifdef CONFIG_LRU_GEN
 
 #ifdef CONFIG_LRU_GEN_ENABLED
