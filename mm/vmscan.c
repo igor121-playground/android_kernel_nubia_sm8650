@@ -68,6 +68,19 @@
 #include "internal.h"
 #include "swap.h"
 
+#define CRITICAL_OOM_SCORE_ADJ	(-900)
+
+static __always_inline bool task_is_critical(void)
+{
+	if (current->flags & PF_KTHREAD)
+		return false;
+
+	if (unlikely(!current->signal))
+		return false;
+
+	return READ_ONCE(current->signal->oom_score_adj) <= CRITICAL_OOM_SCORE_ADJ;
+}
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/vmscan.h>
 
@@ -1012,6 +1025,8 @@ unsigned long shrink_slab(gfp_t gfp_mask, int nid,
 	bool bypass = false;
 
 	trace_android_vh_shrink_slab_bypass(gfp_mask, nid, memcg, priority, &bypass);
+	if (!bypass && task_is_critical())
+		bypass = true;
 	if (bypass)
 		return 0;
 
@@ -3263,19 +3278,6 @@ static bool can_age_anon_pages(struct pglist_data *pgdat,
 
 	/* Also valuable if anon pages can be demoted: */
 	return can_demote(pgdat->node_id, sc);
-}
-
-#define CRITICAL_OOM_SCORE_ADJ	(-900)
-
-static __always_inline bool task_is_critical(void)
-{
-	if (current->flags & PF_KTHREAD)
-		return false;
-
-	if (unlikely(!current->signal))
-		return false;
-
-	return READ_ONCE(current->signal->oom_score_adj) <= CRITICAL_OOM_SCORE_ADJ;
 }
 
 #ifdef CONFIG_LRU_GEN
