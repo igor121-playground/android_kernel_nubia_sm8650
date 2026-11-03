@@ -81,6 +81,12 @@
 
 #include "../../kernel/sched/sched.h"
 
+
+#include <linux/cpu_boost.h>
+#include <soc/qcom/dcvs_boost.h>
+
+extern int kp_active_mode(void);
+
 #define CRITICAL_OOM_SCORE_ADJ	(-900)
 
 static __always_inline bool task_is_critical(void)
@@ -3156,6 +3162,21 @@ static int binder_proc_transaction(struct binder_transaction *t,
 	if (thread) {
 		binder_transaction_priority(thread, t, node);
 		binder_enqueue_thread_work_ilocked(thread, &t->work);
+		/* Boost for in-app activity transitions (sync txn to main thread of foreground app) */
+		if (thread->task == proc->tsk &&
+			READ_ONCE(proc->tsk->signal->oom_score_adj) == 0 &&
+			kp_active_mode() != 1) {
+			switch (kp_active_mode()) {
+			case 3:
+				qcom_dcvs_bus_boost_kick_max(500);
+				cpu_boost_max(500);
+				break;
+			default:
+				qcom_dcvs_bus_boost_kick(500);
+				cpu_boost_kick(500);
+				break;
+			}
+		}
 	} else if (!pending_async) {
 		trace_android_vh_binder_special_task(t, proc, thread,
 			&t->work, &proc->todo, !oneway, &enqueue_task);
@@ -5951,6 +5972,19 @@ static int binder_ioctl_freeze(struct binder_freeze_info *info,
 	int ret = 0;
 
 	if (!info->enable) {
+		/* Boost for warm app transitions (unfreeze = app coming to foreground) */
+		if (kp_active_mode() != 1) {
+			switch (kp_active_mode()) {
+			case 3:
+				qcom_dcvs_bus_boost_kick_max(1000);
+				cpu_boost_max(1000);
+				break;
+			default:
+				qcom_dcvs_bus_boost_kick(1000);
+				cpu_boost_kick(1000);
+				break;
+			}
+		}
 		binder_inner_proc_lock(target_proc);
 		target_proc->sync_recv = false;
 		target_proc->async_recv = false;
