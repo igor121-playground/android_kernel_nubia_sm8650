@@ -103,6 +103,7 @@
 #include <linux/dma-buf.h>
 #include <linux/cpu_boost.h>
 #include <linux/simple_lmk.h>
+#include <soc/qcom/dcvs_boost.h>
 
 #include <asm/pgalloc.h>
 #include <linux/uaccess.h>

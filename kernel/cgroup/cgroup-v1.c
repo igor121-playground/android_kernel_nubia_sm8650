@@ -17,6 +17,7 @@
 #include <linux/fs_parser.h>
 #include <linux/binfmts.h>
 #include <linux/cpu_boost.h>
+#include <soc/qcom/dcvs_boost.h>
 
 #include <trace/events/cgroup.h>
 #include <trace/hooks/cgroup.h>

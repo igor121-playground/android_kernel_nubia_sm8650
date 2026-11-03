@@ -61,6 +61,7 @@
 #include <linux/psi.h>
 #include <linux/binfmts.h>
 #include <linux/cpu_boost.h>
+#include <soc/qcom/dcvs_boost.h>
 #include <net/sock.h>
 
 #define CREATE_TRACE_POINTS
